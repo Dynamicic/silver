@@ -35,6 +35,9 @@ RUN set -ex \
         mariadb-dev \
     && update-ca-certificates \
     && pip install --no-cache-dir -r requirements/common.txt \
+    && pip install --no-cache-dir -r requirements/optionals.txt \
+    && pip install --no-cache-dir -r requirements/dev.txt \
+    && pip install --no-cache-dir -r requirements/test.txt \
     && pip install --no-cache-dir gunicorn==19.4.5 \
     && pip install --no-cache-dir mysql-python \
     && apk del .build-deps \

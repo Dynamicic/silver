@@ -9,5 +9,10 @@ if [ "$SILVER_LOAD_DEV_DATA" == "yes" ] ; then
     /usr/local/bin/python2 /silver/manage.py loaddata -i fixtures/initial_dev_data.json
 fi
 
-exec /usr/local/bin/python2 /silver/manage.py runserver 0.0.0.0:8080
+
+if [ "$SILVER_RUN_TESTS" == "yes" ] ; then
+    make test
+else
+    exec /usr/local/bin/python2 /silver/manage.py runserver 0.0.0.0:8080
+fi
 
