@@ -64,7 +64,7 @@ recommend the first one. You can either:
 -   Use Celery (4.x) and setup a celery-beat for the following tasks
     (recommended):
 
-    -   silver.tasks.generate\_documents
+    -   silver.tasks.generate\_docs
     -   silver.tasks.generate\_pdfs
     -   silver.tasks.execute\_transactions (if making use of silver
         transactions)
@@ -77,18 +77,83 @@ recommend the first one. You can either:
     Redis is required by celery-once, so if you prefer not to use redis,
     you will have to write your own tasks.
 
--   Setup CRONs which call the following Django commands (e.g.
-    `./manage.py generate_documents`):
+##### Installing and configuring celery
 
-    -   generate\_documents
-    -   generate\_pdfs
-    -   execute\_transactions (if making use of silver transactions)
-    -   fetch\_transactions\_status (if making use of silver
-        transactions, for which the payment processor doesn't offer
-        callbacks)
+NB: this assumes redis is installed and running.
 
-    You'll have to make sure that each of these commands is not run more
-    than once at a time.
+More detailed documentation on configuring celery in django is available
+[here][celerydocs], but a short summary is provided below.
+
+  [celerydocs]: http://docs.celeryproject.org/en/latest/django/first-steps-with-django.html
+
+Celery and Redis requirements are included in `path/to/proj/requirements.txt`. 
+
+    celery>=4.0,<4.2
+    redis>=2.10,<2.11  
+    celery-once>=1.2,<2.1  
+
+Once these are installed, you will need to add something like the following to
+`settings.py`. Create a beat schedule for each task named above.
+
+    CELERY_BROKER_URL = 'redis://localhost:6379/'
+    CELERY_BEAT_SCHEDULE = {
+        'generate-pdfs': {
+            'task': 'silver.tasks.generate_pdfs',
+            'schedule': datetime.timedelta(seconds=120)
+        },
+        # ... etc
+    }
+
+    LOCK_MANAGER_CONNECTION = {'host': 'localhost', 'port': 6379, 'db': 1}
+    PDF_GENERATION_TIME_LIMIT = 60
+    TRANSACTION_SAVE_TIME_LIMIT = 5
+
+Then, you need to create a file that imports the silver tasks into the django
+app that relies on silver. Create a file in `yourproject/yourproject/celery.py`:
+
+    from __future__ import absolute_import, unicode_literals
+    import os
+    from celery import Celery
+    
+    # set the default Django settings module for the 'celery' program.
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'yourproject.settings')
+    
+    app = Celery('proj')
+    
+    # Using a string here means the worker don't have to serialize
+    # the configuration object to child processes.
+    # - namespace='CELERY' means all celery-related configuration keys
+    #   should have a `CELERY_` prefix.
+    app.config_from_object('django.conf:settings', namespace='CELERY')
+    
+    # Load task modules from all registered Django app configs.
+    app.autodiscover_tasks()
+    
+    @app.task(bind=True)
+    def debug_task(self):
+        print('Request: {0!r}'.format(self.request))
+
+Then, you'll need to make sure that your django app is recognized as a celery
+app on import. In `yourproject/yourproject/__init__.py` create something like the following:
+
+	from __future__ import absolute_import, unicode_literals
+
+    # This will make sure the app is always imported when
+    # Django starts so that shared_task will use this app.
+	from .celery import app as celery_app
+
+	__all__ = ['celery_app']
+
+Finally, you will need to start a celery worker daemon. What this looks like
+will ultimately depend on your needs, but the basics required to get it working
+are the following bash command.
+
+	$ DJANGO_SETTINGS_MODULE=yourproject.yourproject.settings \
+		celery -A yourproject.yourproject \
+			worker -l info -B 
+
+Saving this as a bash script, and daemonizing that process should be your next
+steps, as well as some method of bringing the process up automatically.
 
 #### Billing documents templates
 
