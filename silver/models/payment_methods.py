@@ -114,6 +114,30 @@ class PaymentMethod(models.Model):
         except InvalidToken:
             return None
 
+    def refund(self):
+        if self.refunded:
+            raise ValidationError("You can't refund a refunded payment method.")
+
+        refundable_states = [Transaction.States.Settled]
+
+        transactions = self.transactions.filter(state__in=refundable_states)
+
+        errors = []
+        for transaction in transactions:
+            if transaction.state == Transaction.States.Settled:
+                try:
+                    transaction.refund()
+                except TransitionNotAllowed:
+                    errors.append("Transaction {} couldn't be refunded".format(transaction.uuid))
+            transaction.save()
+
+        if errors:
+            return errors
+
+        self.save()
+
+        return None
+
     def cancel(self):
         if self.canceled:
             raise ValidationError("You can't cancel a canceled payment method.")
