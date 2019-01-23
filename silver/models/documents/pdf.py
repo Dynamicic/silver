@@ -28,10 +28,30 @@ from django.db.models import (
 from django.db.models.functions import Greatest
 from django.http import HttpResponse
 from django.utils.module_loading import import_string
-from django.utils.encoding import force_bytes
+from django.utils.encoding import force_bytes as force_bytes_dj
 
 from silver.utils.pdf import fetch_resources
 
+def force_bytes(s, encoding='utf-8', strings_only=False, errors='strict'):
+    """
+    This is almost the same as the django force_bytes, but with handling
+    for BytesIO instances, flushing the buffer instead of returning
+    the __unicode__ representation
+
+    Here's the django.utils.encoding.force_bytes doc:
+
+    Similar to smart_bytes, except that lazy instances are resolved to
+    strings, rather than kept as lazy objects.
+
+    If strings_only is True, don't convert (some) non-string-like
+    objects.
+
+    """
+
+    if s.__class__ == BytesIO:
+        return s.getvalue()
+    else:
+        return force_bytes_dj(s, encoding, strings_only, errors)
 
 def get_storage():
     storage_settings = getattr(settings, 'SILVER_DOCUMENT_STORAGE', None)

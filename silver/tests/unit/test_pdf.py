@@ -22,6 +22,24 @@ from django.template.loader import get_template
 
 from silver.models import PDF
 
+@pytest.mark.django_db
+def test_force_bytes_on_bytesio():
+    from django.utils.encoding import force_bytes as force_bytes_dj
+    from django.core.files.base import ContentFile
+    from io import BytesIO
+    from silver.models.documents.pdf import force_bytes
+
+    a = BytesIO()
+    a.write(b"1234")
+
+    forced_dj = force_bytes_dj(a)
+    assert b"BytesIO object" in forced_dj
+
+    forced = force_bytes(a)
+    assert b"BytesIO object" not in forced
+    assert forced == b"1234"
+
+
 
 @pytest.mark.django_db
 def test_generate_pdf():

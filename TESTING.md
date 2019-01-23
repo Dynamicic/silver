@@ -5,20 +5,32 @@ server-side processes to test integrations from the client side. Using this
 document, you should be able to get a payment plan processing and issuing
 invoices as well as issue payments to the payment processor.
 
- * [Creating an Auth Token](#creating-an-auth-token)
- * [Authenticating](#authenticating)
- * [Triggering a payment to process](#triggering-a-payment-to-process)
-    * [Create a Customer](#create-a-customer)
-    * [Create a Customer Payment Method](#create-a-customer-payment-method)
-    * [Create an invoice provider](#create-an-invoice-provider)
-    * [Create a (draft) Invoice](#create-a-draft-invoice)
-    * [Set the invoice to Issued](#set-the-invoice-to-issued)
-    * [Run the payment process](#run-the-payment-process)
- * [Creating and subscribing to plans](#creating-and-subscribing-to-plans)
-    * [Create some product codes](#create-some-product-codes)
-    * [Create a Plan](#create-a-plan)
-    * [Processing plans](#processing-plans)
- * [TODO](#TODO)
+* [Creating an Auth Token](#creating-an-auth-token)
+* [Authenticating](#authenticating)
+* [Triggering a payment to process](#triggering-a-payment-to-process)
+   * [Create a Customer](#create-a-customer)
+   * [Create a Customer Payment Method](#create-a-customer-payment-method)
+   * [Create an invoice provider](#create-an-invoice-provider)
+   * [Create a (draft) Invoice](#create-a-draft-invoice)
+   * [Set the invoice to Issued](#set-the-invoice-to-issued)
+   * [Get the invoice PDF](#get-the-invoice-pdf)
+   * [Run the payment process](#run-the-payment-process)
+* [Creating and subscribing to plans](#creating-and-subscribing-to-plans)
+   * [Create some product codes](#create-some-product-codes)
+   * [Create a Plan](#create-a-plan)
+* [Logging a manual transaction](#logging-a-manual-transaction)
+   * [Create a new customer](#create-a-new-customer)
+   * [Add a manual payment method](#add-a-manual-payment-method)
+   * [create manual payment invoice](#create-manual-payment-invoice)
+   * [set invoice to issued](#set-invoice-to-issued)
+   * [list customer manual payment methods](#list-customer-manual-payment-methods)
+   * [list all customer transactions](#list-all-customer-transactions)
+   * [List customer manual transactions](#list-customer-manual-transactions)
+   * [cancel auto-issued manual initial transaction](#cancel-auto-issued-manual-initial-transaction)
+   * [add a manual transaction](#add-a-manual-transaction)
+   * [set the transaction state to settled](#set-the-transaction-state-to-settled)
+   * [Get the invoice to check the status.](#get-the-invoice-to-check-the-status)
+* [TODO](#todo)
 
 ## Creating an Auth Token
 
@@ -169,6 +181,14 @@ the Invoice and Customer.
           "state": "issued"
       }'
 
+### Get the invoice PDF
+
+    curl --request GET \
+      --url http://dev.billing.dynamicic.com/silver/invoices/$INVOICE_ID.pdf
+
+This will redirect to the appropriate path. For now, the `pdf_url` attribute
+returned from Invoice GET requests is incorrect.
+
 ### Run the payment process
 
 This should be running on a cron or [ celery task ][celery], but for now:
@@ -196,10 +216,10 @@ Run the following, noting the product codes.
 
     curl --request POST \
       --url http://dev.billing.dynamicic.com/silver/product-codes/ \
-      --header 'authorization: Token 16b73e0fb097ea6a6e7f92b65298301d07ca85ba' \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
       --header 'content-type: application/json' \
       --data '{
-	    "value": "charcoal-latte"
+        "value": "charcoal-latte"
     }'
 
 ### Create a Plan
@@ -222,16 +242,190 @@ Note: this needs to include metered features
         "private": false,
         "product_code": "$PRODUCT_CODE",
         "metered_features": [
-    		{
-        		"name": "Basic-Services-metering",
-        		"unit": "Thing",
-        		"price_per_unit": "5.0000",
-        		"included_units": "1.0000",
-        		"product_code": "basic-services"
-    		}
-		],
+            {
+                "name": "Basic-Services-metering",
+                "unit": "Thing",
+                "price_per_unit": "5.0000",
+                "included_units": "1.0000",
+                "product_code": "basic-services"
+            }
+        ],
         "provider": "http://dev.billing.dynamicic.com/silver/providers/$PROVIDER_ID/"
     
+
+## Logging a manual transaction
+
+This is a multi-step process. NB: there could be issues with one customer
+having multiple payment methods. If the customer has a manual method and an
+authorize.net method with a card on file, setting the invoice to 'issued' will
+create multiple new transactions, and a card will be billed automatically if
+one is on file.
+
+### Create a new customer
+
+Send the following request. Note the ID returned.
+
+    curl --request POST \
+      --url http://dev.billing.dynamicic.com/silver/customers/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json' \
+      --data '{
+        "first_name": "Manual",
+        "last_name": "Payments",
+        "company": "Some Jumbo Company",
+        "email": "asdf@bbq.com",
+        "address_1": "23192 Manchester Rd",
+        "city": "Lake Winnipesaukee",
+        "state": "New Hampshire",
+        "zip_code": "41414",
+        "country": "US",
+        "currency": "USD",
+        "meta": {}
+    }'
+
+### Add a manual payment method
+
+    curl --request POST \
+      --url http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/payment_methods/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json' \
+      --data '{
+        "payment_processor_name": "manual",
+        "verified": true,
+        "canceled": false,
+        "valid_until": "2019-10-12T21:33:56.145656Z",
+        "display_info": "manual payment method"
+    }'
+
+### create manual payment invoice
+
+    curl --request POST \
+      --url http://dev.billing.dynamicic.com/silver/invoices/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json' \
+      --data '    {
+            "series": "InvoiceSeriesB",
+            "provider": "http://dev.billing.dynamicic.com/silver/providers/$YOUR_PROVIDER_ID/",
+            "customer": "http://dev.billing.dynamicic.com/silver/customers/$YOUR_CUSTOMER_ID/",
+            "due_date": "2019-02-01",
+            "issue_date": "2019-01-15",
+            "paid_date": null,
+            "cancel_date": null,
+            "sales_tax_name": "sales tax",
+            "sales_tax_percent": "0.05",
+            "currency": "USD",
+            "transaction_currency": "USD",
+            "transaction_xe_rate": "1.0000",
+            "transaction_xe_date": "2019-01-15",
+            "state": "draft",
+            "proforma": null,
+            "total": 50.12,
+            "total_in_transaction_currency": 50.12,
+            "pdf_url": null,
+            "invoice_entries": [
+                {
+                    "description": "Charcoal Latte",
+                    "unit": "Cup",
+                    "unit_price": "25.0000",
+                    "quantity": "2.0000",
+                    "total_before_tax": 50.0,
+                    "start_date": null,
+                    "end_date": null,
+                    "prorated": false,
+                    "product_code": null
+                }
+            ]
+        }'
+
+### set invoice to issued
+
+Issuing the invoice will automatically create a Payment object associated with
+the Invoice and Customer.
+
+    curl --request PUT \
+      --url http://dev.billing.dynamicic.com/silver/invoices/$INVOICE_ID/state/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json' \
+      --data '{
+          "state": "issued"
+      }'
+
+### list customer manual payment methods
+
+Note the URL attribute in the response, because you may need to generate or
+return this for future requests.
+
+    curl --request GET \
+      --url 'http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/payment_methods/?payment_processor_name=manual' \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json'
+
+### list all customer transactions
+
+    curl --request GET \
+      --url http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/transactions/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json'
+
+#### List customer manual transactions
+
+    curl --request GET \
+      --url 'http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/transactions/?state=initial&payment_processor=manual' \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json'
+
+### cancel auto-issued manual initial transaction
+
+If the customer is paying manually by any amount other than the auto-issued
+amount, we need to cancel this transaction, and create a new transaction for
+less than that amount. This is because silver prevents over-paid invoices.
+
+In this example, we will be cancelling this transaction, and recreating a new
+one for the sake of example. Note, we could just as easily set the already
+existing transaction to 'Settled' (i.e., a check was received, and cashed).
+
+Note any GUIDs from the previous API calls for the transactions you need to
+cancel, and send a request:
+
+    curl --request POST \
+      --url http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/transactions/$TRANSACTION_GUID/cancel_request/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json'
+
+### add a manual transaction
+
+    curl --request POST \
+      --url http://dev.billing.dynamicic.com/silver/customers/11/transactions/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json' \
+      --data '{
+        "amount": 25.02,
+        "currency": "USD",
+        "proforma": null,
+        "invoice": "http://dev.billing.dynamicic.com/silver/invoices/$INVOICE_ID/",
+        "payment_method": "http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/payment_methods/$CUSTOMER_MANUAL_PAYMENT_ID/",
+        "valid_until": null
+    }'
+
+### set the transaction state to settled
+
+TODO: this endpoint isn't implemented yet, but this is what it will look like:
+
+    curl --request POST \
+      --url http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/transactions/$TRANSACTION_GUID/settle_transaction/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json'
+
+### Get the invoice to check the status.
+
+If the payments total up to the invoice amount, the invoice will be
+automatically marked as paid within silver.
+
+    curl --request GET \
+      --url http://dev.billing.dynamicic.com/silver/invoices/$INVOICE_ID/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json'
+
 
 ## TODO
 
