@@ -108,6 +108,14 @@ Once these are installed, you will need to add something like the following to
     PDF_GENERATION_TIME_LIMIT = 60
     TRANSACTION_SAVE_TIME_LIMIT = 5
 
+    CELERY_ONCE = {
+      'backend': 'celery_once.backends.Redis',
+      'settings': {
+        'url': 'redis://localhost:6379/0',
+        'default_timeout': 60 * 60
+      }
+    }
+
 Then, you need to create a file that imports the silver tasks into the django
 app that relies on silver. Create a file in `yourproject/yourproject/celery.py`:
 

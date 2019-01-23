@@ -175,7 +175,7 @@ This should be running on a cron or [ celery task ][celery], but for now:
 
 1. Log into the server
 2. Activate the virtual environment
-3. run `./manage.py execute_transactions`
+3. run `./manage.py execute_transactions` (unless celery is set up for this)
 
   [celery]: https://github.com/silverapp/silver/blob/0009ff4ca52dfc711e2f160ad90b449060fc4007/settings.py
 

@@ -98,7 +98,7 @@ class PaymentMethodDetail(RetrieveUpdateAPIView):
 
 class PaymentMethodAction(APIView):
     permission_classes = (permissions.IsAuthenticated,)
-    allowed_actions = ('cancel', 'refund', )
+    allowed_actions = ('cancel', )
 
     def post(self, request, *args, **kwargs):
         payment_method = self.get_object(**kwargs)

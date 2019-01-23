@@ -81,7 +81,7 @@ class TransactionDetail(RetrieveUpdateAPIView):
 
 class TransactionAction(APIView):
     permission_classes = (permissions.IsAuthenticated,)
-    allowed_actions = ('cancel', )
+    allowed_actions = ('cancel', 'refund', 'void', )
 
     def post(self, request, *args, **kwargs):
         transaction = self.get_object(**kwargs)
