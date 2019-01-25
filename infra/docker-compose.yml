@@ -1,0 +1,47 @@
+version: '3'
+volumes:
+  db_data:
+
+services:
+  # TODO: celery worker test env. needed because it seems like there are
+  # environment differences between django and celery that has caused things to
+  # break in the past
+  #
+  # TODO: dockerize seems to break refreshing on code change.
+  #
+  web:
+    build: .
+    command: dockerize -wait tcp://db:3306 -timeout 30s /app/docker-entrypoint
+    environment:
+      - DJANGO_SETTINGS_MODULE=silverintegration.settings
+      - AUTHORIZE_API_LOGIN=asdf
+      - AUTHORIZE_TRANSACTION_KEY=asdf
+      - AUTHORIZE_KEY=asdf
+      - SILVER_DB_ENGINE=django.db.backends.mysql
+      - SILVER_DB_NAME=silver
+      - SILVER_DB_HOST=db
+      - SILVER_MIGRATE=yes
+      - SILVER_LOAD_DEV_DATA=no
+      - SILVER_RUN_TESTS=no
+
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./app/dev.billing.dynamicic.com:/app
+      - ./silver:/code/silver
+      - ./silver-authorize:/code/silver_authorizenet
+
+  # TODO: match dev server DB setup more
+  db:
+    image: "mysql:5.7"
+    restart: always
+    volumes:
+      - db_data:/var/lib/mysql 
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: silver
+      MYSQL_DATABASE: silver
+      MYSQL_USER: silver
+      MYSQL_PASSWORD: silver
+
