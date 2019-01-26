@@ -21,12 +21,10 @@ from silver.models import (
 # admin.site.unregister(ProductCode)
 # admin.site.unregister(MeteredFeature)
 
-try:
-    admin.site.unregister(Transaction)
-    admin.site.unregister(Invoice)
-    admin.site.unregister(Customer)
-except:
-    print("not registered yet")
+admin.site.unregister(Transaction)
+admin.site.unregister(Invoice)
+admin.site.unregister(Customer)
+admin.site.unregister(Subscription)
 
 
 ## Transaction overrides
@@ -55,3 +53,11 @@ class VersionedCustomerAdmin(VersionAdmin, CustomerAdmin):
     pass
 
 patch_admin(Customer)
+
+## Subscription overrides
+
+@admin.register(Subscription)
+class VersionedSubscriptionAdmin(VersionAdmin, SubscriptionAdmin):
+    pass
+
+patch_admin(Subscription)

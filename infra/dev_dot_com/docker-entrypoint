@@ -6,8 +6,12 @@ if [ "$SILVER_MIGRATE" == "yes" ] ; then
 fi
 
 if [ "$SILVER_LOAD_DEV_DATA" == "yes" ] ; then
-    /usr/local/bin/python3 /app/silverintegration/manage.py loaddata -i fixtures.json
+    # NB: run once
+    if [ ! -f fixtures.installed ] ; then
+        /usr/local/bin/python3 /app/silverintegration/manage.py loaddata -i docker-fixtures.json
+    fi
     /usr/local/bin/python3 /app/silverintegration/manage.py createinitialrevisions
+    touch fixtures.installed
 fi
 
 
