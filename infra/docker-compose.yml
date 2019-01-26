@@ -3,35 +3,53 @@ volumes:
   db_data:
 
 services:
-  # TODO: celery worker test env. needed because it seems like there are
-  # environment differences between django and celery that has caused things to
-  # break in the past
-  #
   # TODO: dockerize seems to break refreshing on code change.
   #
+
   web:
     build: .
+    image: "silverwebapp:latest"
+
     command: dockerize -wait tcp://db:3306 -timeout 30s /app/docker-entrypoint
-    environment:
+
+    environment: &WEB_ENVIRONMENT
       - DJANGO_SETTINGS_MODULE=silverintegration.settings
+
       - AUTHORIZE_API_LOGIN=asdf
       - AUTHORIZE_TRANSACTION_KEY=asdf
       - AUTHORIZE_KEY=asdf
+
       - SILVER_DB_ENGINE=django.db.backends.mysql
       - SILVER_DB_NAME=silver
       - SILVER_DB_HOST=db
       - SILVER_MIGRATE=yes
-      - SILVER_LOAD_DEV_DATA=no
+      - SILVER_LOAD_DEV_DATA=yes
       - SILVER_RUN_TESTS=no
+
+      - REDIS_HOST_STRING=redis://redis:6379/0
 
     ports:
       - "8080:8080"
-    volumes:
+
+    volumes: &WEB_VOLUMES
       - ./app/dev.billing.dynamicic.com:/app
       - ./silver:/code/silver
       - ./silver-authorize:/code/silver_authorizenet
 
-  # TODO: match dev server DB setup more
+    depends_on:
+      - db
+
+  celery:
+    # This is almost exactly the same as `web`
+    image: silverwebapp:latest
+    command: celery -A silverintegration worker -l info -B
+    working_dir: "/app/silverintegration"
+    environment: *WEB_ENVIRONMENT
+    volumes: *WEB_VOLUMES
+    depends_on:
+      - db
+      - redis
+
   db:
     image: "mysql:5.7"
     restart: always
@@ -45,3 +63,7 @@ services:
       MYSQL_USER: silver
       MYSQL_PASSWORD: silver
 
+  redis:
+    image: "redis:3.2-alpine"
+    ports:
+     - "6379:6379"

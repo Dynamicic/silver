@@ -6,13 +6,17 @@ if [ "$SILVER_MIGRATE" == "yes" ] ; then
 fi
 
 if [ "$SILVER_LOAD_DEV_DATA" == "yes" ] ; then
-    /usr/local/bin/python3 /app/silverintegration/manage.py loaddata -i fixtures/initial_dev_data.json
+    /usr/local/bin/python3 /app/silverintegration/manage.py loaddata -i fixtures.json
+    /usr/local/bin/python3 /app/silverintegration/manage.py createinitialrevisions
 fi
 
 
 if [ "$SILVER_RUN_TESTS" == "yes" ] ; then
     make test
 else
+    if [ "$SILVER_LOAD_DEV_DATA" == "yes" ] ; then
+        echo "TEST ADMIN USER: root / adminadmin"
+    fi
     exec /usr/local/bin/python3 /app/silverintegration/manage.py runserver 0.0.0.0:8080
 fi
 

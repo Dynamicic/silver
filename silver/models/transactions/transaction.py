@@ -42,6 +42,10 @@ from silver.utils.models import AutoDateTimeField
 logger = logging.getLogger(__name__)
 
 
+# TODO: PaymentOverages
+#   Might need a new model so that corrections can be issued to deal
+#   with Payment Overages.
+
 @python_2_unicode_compatible
 class Transaction(models.Model):
     _provider = None
@@ -220,6 +224,10 @@ class Transaction(models.Model):
                           )
                 raise ValidationError(message)
             if self.amount:
+                # TODO: PaymentOverages
+                # perhaps restrict this to manually created transactions
+                # only?  probably shouldn't be creating new automatic
+                # transactions that exceed the payment amount
                 if self.amount > self.document.amount_to_be_charged_in_transaction_currency:
                     message = "Amount is greater than the amount that should be charged in order " \
                               "to pay the billing document."

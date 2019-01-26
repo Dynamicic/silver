@@ -1,6 +1,6 @@
 # Infra stuff
 
-TODO: write 
+TODO: write out basic docs for setting up django app + silver + deps etc. 
 
 ## Docker
 
@@ -22,3 +22,8 @@ Then
     docker-compose up
 
 And wait a while.
+
+## Logging in
+
+Fixtures should automatically be installed to allow you to log in, you should
+see the admin password displayed in the logs to `web_1`. This will not be available on production services

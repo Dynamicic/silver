@@ -30,6 +30,14 @@ PAYMENT_DUE_DAYS = getattr(settings, 'SILVER_DEFAULT_DUE_DAYS', 5)
 
 
 class Customer(BaseBillingEntity):
+    # TODO: PaymentOverages
+    # 
+    #   need a @property on each customer that represents the total
+    #   amount they have overpaid on all invoices: it should be then
+    #   possible to issue a transaction to correct, if they have one on
+    #   file.
+    # 
+
     class Meta:
         index_together = (('first_name', 'last_name', 'company'),)
         ordering = ['first_name', 'last_name', 'company']
