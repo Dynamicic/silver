@@ -53,6 +53,7 @@ coverage.xml
 # Django stuff:
 *.log
 local_settings.py
+settings.py
 
 # Flask stuff:
 instance/
@@ -96,6 +97,7 @@ app_static/
 settings_local.py
 
 *.swp
+*.sw*
 .drone.sec.yml
 db.sqlite3
 

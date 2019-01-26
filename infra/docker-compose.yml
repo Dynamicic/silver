@@ -8,6 +8,7 @@ services:
 
   web:
     build: .
+    # build + image = tags this image build
     image: "silverwebapp:latest"
 
     command: dockerize -wait tcp://db:3306 -timeout 30s /app/docker-entrypoint
@@ -32,7 +33,7 @@ services:
       - "8080:8080"
 
     volumes: &WEB_VOLUMES
-      - ./app/dev.billing.dynamicic.com:/app
+      - ./app/dev_dot_com:/app
       - ./silver:/code/silver
       - ./silver-authorize:/code/silver_authorizenet
 
