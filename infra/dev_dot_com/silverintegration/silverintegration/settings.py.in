@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'dal_select2',
     'silver',
     'silver_authorizenet',
+    'history',
 ]
 
 MIDDLEWARE = [
