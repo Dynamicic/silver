@@ -31,7 +31,12 @@ admin.site.unregister(Subscription)
 
 @admin.register(Transaction)
 class VersionedTransactionAdmin(VersionAdmin, TransactionAdmin):
-    pass
+    actions = ['execute', 'process', 'cancel', 'settle', 'fail',
+               'refund']
+
+    def refund(self, request, queryset):
+        self.perform_action(request, queryset, 'refund', 'refunded')
+    refund.short_description = 'Refund the selected transactions'
 
 patch_admin(Transaction)
 
@@ -48,9 +53,25 @@ patch_admin(Invoice)
 
 ## Customer overrides
 
+class InvoiceFForm(BillingDocumentForm):
+    class Meta:
+        model = Invoice
+        # NOTE: The exact fields fill be added in the InvoiceAdmin. This was
+        # added here to remove the deprecation warning.
+        fields = ('kind', 'state', 'series', 'customer', '_total_in_transaction_currency')
+        readonly_fields = ('kind', 'state', 'series', 'customer', 'pdf',)
+
+
+class CustomerTransactionInline(TabularInline):
+    model = Invoice
+    form = InvoiceFForm
+    extra = 0
+
+
 @admin.register(Customer)
 class VersionedCustomerAdmin(VersionAdmin, CustomerAdmin):
-    pass
+    inlines = [CustomerTransactionInline]
+
 
 patch_admin(Customer)
 

@@ -32,6 +32,7 @@ RUN set -ex \
         libxslt-dev \
         cython \
         cython-dev \
+        py-lxml \
         jpeg-dev \
         musl-dev \
         linux-headers \
