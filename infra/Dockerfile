@@ -16,6 +16,7 @@ WORKDIR /app
 
 # Install silver
 COPY ./app/dev_dot_com/requirements-docker.txt /app/requirements.txt
+COPY ./app/dev_dot_com/xhtml2pdf.zip /app/xhtml2pdf.zip
 
 RUN set -ex \
     && apk update \
@@ -29,9 +30,6 @@ RUN set -ex \
         libffi-dev \
         zlib-dev \
         libxslt-dev \
-        cython \
-        cython-dev \
-        py-lxml \
         jpeg-dev \
         musl-dev \
         linux-headers \
@@ -50,7 +48,10 @@ COPY ./silver /code/silver
 
 # Install more deps
 RUN cd /code/silver_authorizenet \
-    && python setup.py develop
+    && pip install --no-cache-dir -e .
+
+RUN cd /app \
+    && pip install --no-cache-dir xhtml2pdf.zip
 
 VOLUME /app
 

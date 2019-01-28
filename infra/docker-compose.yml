@@ -2,10 +2,10 @@ version: '3'
 volumes:
   db_data:
 
+# TODO: dockerize doesn't always get all code changes
+# NB: this doesn't actually run out of uwsgi and nginx
+#
 services:
-  # TODO: dockerize seems to break refreshing on code change.
-  #
-
   web:
     build: .
     # build + image = tags this image build
@@ -50,9 +50,10 @@ services:
     depends_on:
       - db
       - redis
+      - web
 
   db:
-    image: "mysql:5.7"
+    image: "yobasystems/alpine-mariadb"
     restart: always
     volumes:
       - db_data:/var/lib/mysql 
