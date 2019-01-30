@@ -247,8 +247,11 @@ Current available payment processors for Silver are:
 To add REST hooks to Silver you can install and configure the following
 packages:
 
-> -   https://github.com/PressLabs/django-rest-hooks-ng
+> -   https://github.com/zapier/django-rest-hooks
 > -   https://github.com/PressLabs/django-rest-hooks-delivery
+
+* NB: the original silver (not our fork) depends on its own version of
+  `django-rest-hooks`, which is not compatible with Python 3 
 
 ### Getting Started
 
