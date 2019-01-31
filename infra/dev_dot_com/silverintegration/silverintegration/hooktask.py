@@ -35,9 +35,26 @@ def deliver_hook_wrapper(target, payload, instance, hook):
         instance_id = None
     # pass ID's not objects because using pickle for objects is a bad thing
     kwargs = dict(target=target, payload=payload,
-                  instance_id=instance_id, hook_id=hook.id)
+                  instance_id=instance_id, hook_id=hook.id, user=False)
     DeliverHook.apply_async(kwargs=kwargs)
+    print("applied")
 
+def find_and_fire_hook(event_name, instance, user_override=None):
+    """
+    Look up Hooks that apply
+    """
+    from rest_hooks.models import Hook, HOOK_EVENTS
+
+    if not event_name in HOOK_EVENTS.keys():
+        raise Exception(
+            '"{}" does not exist in `settings.HOOK_EVENTS`.'.format(event_name)
+        )
+
+    filters = {'event': event_name}
+
+    hooks = Hook.objects.filter(**filters)
+    for hook in hooks:
+        hook.deliver_hook(instance)
 
 
 process_hooks = DeliverHook.delay
