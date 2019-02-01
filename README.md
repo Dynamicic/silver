@@ -248,10 +248,81 @@ To add REST hooks to Silver you can install and configure the following
 packages:
 
 > -   https://github.com/zapier/django-rest-hooks
-> -   https://github.com/PressLabs/django-rest-hooks-delivery
 
 * NB: the original silver (not our fork) depends on its own version of
   `django-rest-hooks`, which is not compatible with Python 3 
+* NB: the original silver also depends on django-rest-hooks-delivery, which is
+  also not Python 3 compatible
+
+##### Configuring hooks
+
+After initailizing the database and running all migrations, hooks should be
+ready to install and use. It requires the following:
+
+1.) Configure a celery beat task to process incoming hook delivery tasks. (See
+the section on installing and configuring celery). The task definition for the
+webhook should look something like the following:
+
+    CELERY_BEAT_SCHEDULE = {
+        ...
+        'process-hooks': {
+            'task': 'silverintegration.hooktask.process_hooks',
+            'schedule': datetime.timedelta(seconds=10),
+        }
+        ...
+    }
+
+2.) Silver requires a `HOOK_FINDER` and a `HOOK_DELIVERER` function to be set
+in `settings.py`:
+
+    HOOK_FINDER    = 'silverintegration.hooktask.find_and_fire_hook'
+    HOOK_DELIVERER = 'silverintegration.hooktask.deliver_hook_wrapper'
+
+3.) `HOOK_EVENTS` needs to be set in `settings.py`. Following is an example,
+but more custom hooks may be created than these.
+
+    HOOK_EVENTS = {
+        'any.event.name': 'App.Model.Action' (created/updated/deleted)
+        'customer.created': 'silver.Customer.created',
+        'customer.updated': 'silver.Customer.updated',
+        'customer.deleted': 'silver.Customer.deleted',
+
+        'plan.created': 'silver.Plan.created',
+        'plan.updated': 'silver.Plan.updated',
+        'plan.deleted': 'silver.Plan.deleted',
+
+        'subscription.created': 'silver.Subscription.created',
+        'subscription.updated': 'silver.Subscription.updated',
+        'subscription.deleted': 'silver.Subscription.deleted',
+
+        'provider.created': 'silver.Provider.created',
+        'provider.updated': 'silver.Provider.updated',
+        'provider.deleted': 'silver.Provider.deleted',
+
+        'invoice.created': 'silver.Invoice.created',
+        'invoice.updated': 'silver.Invoice.updated',
+        'invoice.deleted': 'silver.Invoice.deleted',
+
+        'proforma.created': 'silver.Proforma.created',
+        'proforma.updated': 'silver.Proforma.updated',
+        'proforma.deleted': 'silver.Proforma.deleted',
+    }
+
+
+4.) Once all the settings are configured, for each hook needed, a Hook
+definition needs to be created in the database. Log in to the Django admin and
+add a Hook object, and configure the webhook endpoint. The User field may be
+required, but it's not necessary: set it to 1 for the root user.
+
+
+##### Testing hooks
+
+For each hook definition, specify a URL that verbosely logs. If you need
+something for this that requires almost no effort, use
+[https://www.webhookapp.com](https://www.webhookapp.com). NB: only use it for
+testing purposes, and not live data.
+
+
 
 ### Getting Started
 
