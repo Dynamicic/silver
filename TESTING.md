@@ -208,7 +208,17 @@ This assumes the following steps above have been completed:
  - Creating a Customer Payment Plan
  - Creating an Invoice Provider
 
-It will require some new objects too
+It will require some new objects too. Note that the Plan object defines an
+interval to re-evaluate the billing total, so a Plan could function in a very
+general way: $1/day, for 30 days: totalling up to $30 at the end of the period.
+
+The Plan could also have metered services associated with it, and there are
+endpoints to log incremental changes to metered feature usage (via
+Subscriptions). These usage stats will be totalled up to the billing amount.
+
+Subscriptions to each Plan must be created for each customer, and are the
+vehicle through which invoices are generated automatically, and through which
+automatic plan-based transactions are generated.
 
 ### Create some product codes
 
@@ -251,7 +261,54 @@ Note: this needs to include metered features
             }
         ],
         "provider": "http://dev.billing.dynamicic.com/silver/providers/$PROVIDER_ID/"
+
+### Subscribing a customer to the plan
+
+With the plan ID from the last request to create the plan, send the following:
+
+    curl --request POST \
+      --url http://dev.billing.dynamicic.com/silver/customers/10/subscriptions/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json' \
+      --data '{
+	    "customer": "http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/",
+	    "plan": "http://dev.billing.dynamicic.com/silver/plans/$PLAN_ID/",
+	    "start_date": "2019-02-03"
+    }'
     
+
+### Activating the customer's plan
+
+Send the following request:
+
+    curl --request POST \
+      --url http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/subscriptions/$PLAN_ID/activate/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json'
+
+Note that you can also send to 
+
+ * `$CUSTOMER_ID/subscriptions/$PLAN_ID/cancel/`
+   - include a `when` argument in the JSON body.
+ * `$CUSTOMER_ID/subscriptions/$PLAN_ID/reactivate/`
+
+
+### Logging metered feature usage
+
+To log metered feature usage, send a PATCH request like the following. Note
+that two `update_type` settings are possible, `absolute` and `relative`.
+`absolute` will replace the count with the new value, `relative` will sum the
+existing value and the new value, negative values are supported.
+
+    curl --request PATCH \
+      --url http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/subscriptions/$PLAN_ID/metered-features/$PRODUCT_CODE_SLUG/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json' \
+      --data '{
+	    "date": "2019-02-03",
+	    "count": 3,
+	    "update_type": "relative"
+    }'
 
 ## Logging a manual transaction
 
