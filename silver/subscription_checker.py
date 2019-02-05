@@ -70,7 +70,7 @@ class SubscriptionChecker(object):
                 )
 
     def _log_subscription_billing(self, document, subscription):
-        logger.debug('Checking subscription: %s', {
+        logger.debug('Cancelling unpaid subscription: %s', {
             'subscription': subscription.id,
             'state': subscription.state,
             'doc_type': document.provider.flow,
@@ -124,30 +124,6 @@ class SubscriptionChecker(object):
 
         return subs_to_bill
 
-    def _bill_subscription_into_document(self, subscription, billing_date, document=None):
-        """ TODO: document this
-        """
-
-        if not document:
-            document = self._create_document(subscription, billing_date)
-
-        self._log_subscription_billing(document, subscription)
-
-        kwargs = subscription.billed_up_to_dates
-
-        kwargs.update({
-            'billing_date': billing_date,
-            'subscription': subscription,
-            subscription.provider.flow: document,
-        })
-        self.add_subscription_cycles_to_document(**kwargs)
-
-        if subscription.state == Subscription.STATES.CANCELED:
-            subscription.end()
-            subscription.save()
-
-        return document
-
     def _check_for_user_with_consolidated_billing(self, customer, billing_date, force_generate):
         """
         Checks the billing documents for all the subscriptions of a customer
@@ -160,15 +136,10 @@ class SubscriptionChecker(object):
 
         for provider, document in existing_provider_documents.items():
             # TODO: suspend subscription if after grace period
-
-            # document = self._bill_subscription_into_document(subscription, billing_date)
-
-            # if provider.default_document_state == Provider.DEFAULT_DOC_STATE.ISSUED:
-            #     document.issue()
-
-            raise NotImplementedError
             subscription.cancel(when="now")
             subscription.save()
+            self._log_subscription_billing(document, subscription)
+
 
 
     def _check_for_user_without_consolidated_billing(self, customer, billing_date,
@@ -185,16 +156,11 @@ class SubscriptionChecker(object):
             provider = subscription.plan.provider
 
             # TODO: suspend subscription if after grace period
-
-            # document = self._bill_subscription_into_document(subscription, billing_date)
-
-            # if provider.default_document_state == Provider.DEFAULT_DOC_STATE.ISSUED:
-            #     document.issue()
-            raise NotImplementedError
             subscription.cancel(when="now")
             subscription.save()
+            self._log_subscription_billing(document, subscription)
 
-    def _generate_for_single_subscription(self, subscription=None, billing_date=None,
+    def _check_for_single_subscription(self, subscription=None, billing_date=None,
                                           force_generate=False):
         """
         Generates the billing documents corresponding to a single subscription.
@@ -205,19 +171,12 @@ class SubscriptionChecker(object):
 
         provider = subscription.provider
 
-        if not subscription.should_be_billed(billing_date) or force_generate:
-            return
-
         # TODO: suspend subscription if after grace period
-        # document = self._bill_subscription_into_document(subscription, billing_date)
         if self._is_subscription_unpaid_after_grace(customer,
                                                     billing_date,
                                                     subscription):
 
-            raise NotImplementedError
             subscription.cancel(when="now")
             subscription.save()
-
-        # if provider.default_document_state == Provider.DEFAULT_DOC_STATE.ISSUED:
-        #     document.issue()
+            self._log_subscription_billing(document, subscription)
 
