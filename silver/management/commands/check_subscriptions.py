@@ -59,6 +59,6 @@ class Command(BaseCommand):
             logger.info('Checking all the available subscriptions; '
                         'billing_date=%s.', billing_date)
 
-            subscription_checker.check(billing_date=billing_date)
+            subscription_check.check(billing_date=billing_date)
             self.stdout.write('Done.')
 

@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 
 import datetime as dt
+from datetime import timedelta
+
 import logging
 
 from decimal import Decimal
@@ -70,6 +72,7 @@ class SubscriptionChecker(object):
                 )
 
     def _log_subscription_billing(self, document, subscription):
+        # TODO: fix
         logger.debug('Cancelling unpaid subscription: %s', {
             'subscription': subscription.id,
             'state': subscription.state,
@@ -80,7 +83,6 @@ class SubscriptionChecker(object):
         })
 
     def _is_subscription_unpaid_after_grace(self, customer, billing_date, subscription):
-        import timedelta
 
         due_grace_period = timedelta(days=customer.payment_due_days)
 
@@ -100,29 +102,27 @@ class SubscriptionChecker(object):
         if doc.state == doc.__class__.STATES.ISSUED:
             # current billing date is greater than the issued date +
             # grace period
-            if billing_date > (doc.issued_date + due_grace_period):
+            if billing_date >= (doc.issue_date + due_grace_period):
                 return True
 
         return False
 
     def get_subscriptions_with_doc_issued_and_past_grace(self, customer, billing_date, force_generate):
-        import timedelta
 
         due_grace_period = timedelta(days=customer.payment_due_days)
 
         # Select all the active or canceled subscriptions
-        subs_to_bill = []
         criteria = {'state__in': [Subscription.STATES.ACTIVE,
                                   Subscription.STATES.CANCELED]}
+
         for subscription in customer.subscriptions.filter(**criteria):
             # Find a subscription with billing log items where invoices
             # have failed transactions
             if self._is_subscription_unpaid_after_grace(customer,
                                                         billing_date,
                                                         subscription):
-                subs_to_bill.append(subscription)
+                yield subscription
 
-        return subs_to_bill
 
     def _check_for_user_with_consolidated_billing(self, customer, billing_date, force_generate):
         """
@@ -134,12 +134,14 @@ class SubscriptionChecker(object):
         # certain customer might have more than one subscription
         # => all the subscriptions belonging to the same provider will be added to the same document
 
-        for provider, document in existing_provider_documents.items():
-            # TODO: suspend subscription if after grace period
+        existing_provider_documents = {}
+        for subscription in self.get_subscriptions_with_doc_issued_and_past_grace(customer,
+                                                                                  billing_date,
+                                                                                  force_generate):
             subscription.cancel(when="now")
             subscription.save()
-            self._log_subscription_billing(document, subscription)
-
+            self._debug_log("Cancelling ", customer, billing_date, subscription)
+            # self._log_subscription_billing(document, subscription)
 
 
     def _check_for_user_without_consolidated_billing(self, customer, billing_date,
@@ -155,10 +157,11 @@ class SubscriptionChecker(object):
                                                                                   force_generate):
             provider = subscription.plan.provider
 
-            # TODO: suspend subscription if after grace period
             subscription.cancel(when="now")
             subscription.save()
-            self._log_subscription_billing(document, subscription)
+            logger.info("Cancelling " % {'subscription': subscription})
+            self._debug_log("Cancelling ", customer, billing_date, subscription)
+            # self._log_subscription_billing(document, subscription)
 
     def _check_for_single_subscription(self, subscription=None, billing_date=None,
                                           force_generate=False):
@@ -171,12 +174,14 @@ class SubscriptionChecker(object):
 
         provider = subscription.provider
 
-        # TODO: suspend subscription if after grace period
         if self._is_subscription_unpaid_after_grace(customer,
                                                     billing_date,
                                                     subscription):
 
             subscription.cancel(when="now")
             subscription.save()
-            self._log_subscription_billing(document, subscription)
+            self._debug_log("Cancelling ", customer, billing_date, subscription)
+            assert subscription.state == Subscription.States.CANCELED
 
+    def _debug_log(self, msg, *args, **kwargs):
+        logging.debug("Debugging - " + msg + " %s %s" % (args, kwargs))

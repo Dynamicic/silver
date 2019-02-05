@@ -22,7 +22,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from silver.models import Invoice, Proforma, Transaction
+from silver.models import Invoice, Proforma, Transaction, Subscription
 from silver.tests.factories import (PaymentMethodFactory, InvoiceFactory,
                                     ProformaFactory, TransactionFactory,
                                     CustomerFactory)
@@ -40,6 +40,8 @@ from silver.utils.dates import ONE_DAY
 
 from django.utils.six import StringIO
 
+import logging
+logging.basicConfig(level=logging.INFO)
 
 @override_settings(PAYMENT_PROCESSORS=PAYMENT_PROCESSORS)
 class TestDocumentsTransactionSubscriptions(TestCase):
@@ -68,7 +70,9 @@ class TestDocumentsTransactionSubscriptions(TestCase):
         to suspend. """
 
         # Create a customer
-        customer = CustomerFactory.create(sales_tax_percent=Decimal('0.00'))
+        #
+        customer = CustomerFactory.create(sales_tax_percent=Decimal('0.00'),
+                                          payment_due_days=3)
         PaymentMethodFactory.create(
             payment_processor=triggered_processor, customer=customer,
             canceled=False,
@@ -76,22 +80,29 @@ class TestDocumentsTransactionSubscriptions(TestCase):
         )
 
         # Create a metered feature
+        #
         mf_price = Decimal('2.5')
         metered_feature = MeteredFeatureFactory(
             included_units_during_trial=Decimal('0.00'),
             price_per_unit=mf_price)
         currency = 'USD'
 
-        # Crate a plan with metered features
-        plan = PlanFactory.create(interval=Plan.INTERVALS.MONTH,
-                                  interval_count=1, generate_after=25,
-                                  enabled=True, amount=Decimal('20.00'),
+        # Crate a plan with metered features. Generate the invoice after
+        # the 5 day trial period, the plan will be billed every 30 days.
+        # 
+        generate_after = 5
+        plan = PlanFactory.create(interval=Plan.INTERVALS.DAY,
+                                  interval_count=30,
+                                  generate_after=generate_after,
+                                  enabled=True,
+                                  amount=Decimal('20.00'),
                                   trial_period_days=5,
                                   metered_features=[metered_feature],
                                   currency=currency)
         start_date = dt.date(2019, 1, 1)
 
-        # Create the prorated subscription
+        # Subscribe the customer
+        #
         subscription = SubscriptionFactory.create(
             plan=plan, start_date=start_date, customer=customer)
         subscription.activate()
@@ -101,61 +112,56 @@ class TestDocumentsTransactionSubscriptions(TestCase):
         consumed_1 = Decimal('5.00')
         consumed_2 = Decimal('5.00')
         mf_log = MeteredFeatureUnitsLogFactory.create(
-            subscription=subscription, metered_feature=metered_feature,
-            start_date=dt.date(2019, 1, 10), end_date=subscription.trial_end,
+            subscription=subscription,
+            metered_feature=metered_feature,
+            start_date=dt.date(2019, 1, 10),
+            end_date=subscription.trial_end,
             consumed_units=consumed_1)
 
         prev_billing_date = generate_docs_date('2019-01-03')  # During trial period
         curr_billing_date = subscription.trial_end + ONE_DAY
+        billing_grace_exp = subscription.trial_end + (ONE_DAY * (5 + 30))
 
         # Generate the docs
         call_command('generate_docs', billing_date=prev_billing_date, stdout=self.output)
 
         proforma = Proforma.objects.first()
-        # Expect 2 entries:
-        # - prorated plan trial (+-) first month
-        # - prorated plan trial (+-) next month
-        assert proforma.proforma_entries.count() == 2
 
+        assert proforma.proforma_entries.count() != 0
+        assert Subscription.objects.all().count() == 1
         assert Invoice.objects.all().count() == 0
-
         assert Proforma.objects.all()[0].total == Decimal('0.00')
 
         # Consume more units
         mf_log.consumed_units += consumed_2
         mf_log.save()
 
-        call_command('generate_docs', billing_date=curr_billing_date, stdout=self.output)
+        call_command('generate_docs', billing_date=billing_grace_exp, stdout=self.output)
 
-        assert Proforma.objects.all().count() == 2
+        assert Proforma.objects.all().count() != 0
         assert Invoice.objects.all().count() == 0
 
-        # Issue the proforma to generate transactions
-        proforma = Proforma.objects.all()[1]
-        proforma.issue()
+        for pf in Proforma.objects.all():
+            # # Issue the proforma to generate transactions
+            # proforma = Proforma.objects.all()[1]
+            pf.issue()
+            pf.save()
+
+            self.assertEqual(pf.state, Proforma.STATES.ISSUED)
+            # Fail the transaction
+            for tx in pf.transactions:
+                # tx = proforma.transactions[0]
+                tx.fail()
+                tx.save()
+                self.assertEqual(tx.state, Transaction.States.Failed)
+
         assert Transaction.objects.all().count() != 0
 
-        # Fail the transaction
-        transaction = proforma.transactions[0]
-        transaction.fail()
-        transaction.save()
-
-        # Confirm that nothing has been paid, and the transaction fails.
-        self.assertEqual(proforma.state, proforma.STATES.ISSUED)
-        self.assertEqual(transaction.state, Transaction.States.Failed)
-
-        # TODO: after grace period of 5 days, suspend the plan
-        #  - hardcode grace period for now? 
-        #  - generate documents again +5 days, fail another transaction,
-        #  cancel?
-
-        # this needs to be in a signal somewhere:
-        # need a periodic management task that runs to see if declined
-        # transactions are associated with active plans. if active, and
-        # unpaid +5 days after billing period, then cancel the
-        # subscription.
-        subscription.cancel(when="now")
-        self.assertEqual(subscription.state, Subscription.STATES.CANCELED)
+        call_command('check_subscriptions', billing_date=billing_grace_exp, stdout=self.output)
+        subscr = Subscription.objects.first()
+        # Scan for subscriptions with unpaid documents
+        logging.debug("subscr %s" % subscr)
+        self.assertEqual(subscr.state, Subscription.STATES.CANCELED)
 
 
     def test_subscription_transaction_declined_suspend_after_grace(self):
