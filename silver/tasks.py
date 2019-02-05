@@ -24,6 +24,8 @@ from django.conf import settings
 from django.utils import timezone
 
 from silver.documents_generator import DocumentsGenerator
+from silver.subscription_checker import SubscriptionChecker
+
 from silver.models import Invoice, Proforma, Transaction, BillingDocumentBase
 from silver.payment_processors.mixins import PaymentProcessorTypes
 from silver.vendors.redis_server import redis
@@ -63,6 +65,14 @@ def generate_billing_documents(billing_date=None):
 
     DocumentsGenerator().generate(billing_date=billing_date)
 
+
+@shared_task(base=QueueOnce, once={'graceful': True},
+             time_limit=DOCS_GENERATION_TIME_LIMIT, ignore_result=True)
+def check_subscriptions(billing_date=None):
+    if not billing_date:
+        billing_date = timezone.now().date()
+
+    SubscriptionChecker().check(billing_date=billing_date)
 
 FETCH_TRANSACTION_STATUS_TIME_LIMIT = getattr(settings, 'FETCH_TRANSACTION_STATUS_TIME_LIMIT',
                                               60)  # default 60s

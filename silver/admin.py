@@ -47,6 +47,8 @@ from django.utils.html import escape
 from django.utils.translation import ugettext_lazy as _
 
 from silver.documents_generator import DocumentsGenerator
+from silver.subscription_checker import SubscriptionChecker
+
 from silver.models import (
     Plan, MeteredFeature, Subscription, Customer, Provider,
     MeteredFeatureUnitsLog, Invoice, DocumentEntry,
@@ -281,8 +283,24 @@ class CustomerAdmin(LiveModelAdmin):
     search_fields = ['customer_reference', 'first_name', 'last_name', 'company',
                      'address_1', 'address_2', 'city', 'zip_code', 'country',
                      'state', 'email', 'meta']
-    actions = ['generate_all_documents']
+    actions = ['check_all_subscriptions', 'generate_all_documents']
     exclude = ['live']
+
+    def check_all_subscriptions(self, request, queryset):
+        if request.POST.get('post'):
+            billing_date = timezone.now().date()
+            SubscriptionChecker().check(billing_date=billing_date,
+                                        customers=queryset,
+                                        force_generate=True)
+
+            msg = 'Successfully checked all user{term} subscriptions.'
+            if queryset.count() > 1:
+                msg = msg.format(term='s\'')
+            else:
+                msg = msg.format(term='\'s')
+            self.message_user(request, msg)
+
+            return None
 
     def generate_all_documents(self, request, queryset):
         if request.POST.get('post'):
