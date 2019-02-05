@@ -158,10 +158,6 @@ class SubscriptionChecker(object):
         # certain customer might have more than one subscription
         # => all the subscriptions belonging to the same provider will be added to the same document
 
-        existing_provider_documents = {}
-        for subscription in self.get_subscriptions_with_doc_issued_and_past_grace(customer, billing_date,
-                                                                                  force_generate):
-
         for provider, document in existing_provider_documents.items():
             # TODO: suspend subscription if after grace period
 
