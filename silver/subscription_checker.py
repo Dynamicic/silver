@@ -94,10 +94,6 @@ class SubscriptionChecker(object):
         if lbl.proforma:
             doc = lbl.proforma
 
-        # NB: this can also check for failed transactions. 
-        # for tx in doc.transactions:
-        #     if tx.state == Transaction.States.Failed:
-
         # Doc is issued
         if doc.state == doc.__class__.STATES.ISSUED:
             # current billing date is greater than the issued date +

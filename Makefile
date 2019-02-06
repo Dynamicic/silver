@@ -1,10 +1,16 @@
 full-test: test
 
 testwatch:
-	watchmedo shell-command --patterns="*.py" --recursive --ignore-directories --command="flock -n testing.lock make testmod"
+	watchmedo shell-command \
+		--patterns="*.py" \
+		--recursive \
+		--ignore-directories \
+		--command="flock -n testing.lock make testmod"
 
 testmod:
-	DJANGO_SETTINGS_MODULE=settings_test pytest -vv --pyargs silver.tests.integration.test_documents_transactions_hooks
+	DJANGO_SETTINGS_MODULE=settings_test pytest -vv --pyargs \
+		silver.tests.integration.test_documents_transactions_hooks \
+		silver.tests.integration.test_transactions_overpayments
 
 test:
 	DJANGO_SETTINGS_MODULE=settings_test pytest -vv

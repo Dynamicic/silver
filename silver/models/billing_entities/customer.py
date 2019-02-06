@@ -16,6 +16,7 @@ from __future__ import absolute_import
 
 from pyvat import is_vat_number_format_valid
 
+from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
@@ -30,7 +31,7 @@ PAYMENT_DUE_DAYS = getattr(settings, 'SILVER_DEFAULT_DUE_DAYS', 5)
 
 
 class Customer(BaseBillingEntity):
-    # TODO: PaymentOverages
+    # TODO: Overpayments
     # 
     #   need a @property on each customer that represents the total
     #   amount they have overpaid on all invoices: it should be then
@@ -117,3 +118,31 @@ class Customer(BaseBillingEntity):
 
     def __str__(self):
         return self.name
+
+    @property
+    def balance(self):
+        """ Calculate the customer balance, as a function of amount paid
+        for all invoices and invoice totals in the transaction currency.
+        """
+        from django.db.models import Sum, Q
+
+        BillingDocs = apps.get_model('silver.BillingDocumentBase')
+        Transaction = apps.get_model('silver.Transaction')
+
+        doc_totals = BillingDocs.objects\
+            .filter(customer=self)\
+            .aggregate(Sum('_total_in_transaction_currency'))
+
+        doc_sum  = doc_totals['_total_in_transaction_currency__sum']
+
+        state    = Q(state=Transaction.States.Settled)
+        document = Q(invoice__customer=self) | \
+                   Q(proforma__customer=self)
+
+        doc_trnx = Transaction.objects\
+            .filter(document & state)\
+            .aggregate(Sum('amount'))
+
+        trnx_sum = doc_trnx['amount__sum']
+
+        return trnx_sum - doc_sum

@@ -42,21 +42,26 @@ from silver.utils.models import AutoDateTimeField
 logger = logging.getLogger(__name__)
 
 
-# TODO: PaymentOverages
-#   Might need a new model so that corrections can be issued to deal
-#   with Payment Overages.
-
 @python_2_unicode_compatible
 class Transaction(models.Model):
     _provider = None
 
     amount = models.DecimalField(
         decimal_places=2, max_digits=12,
-        validators=[MinValueValidator(Decimal('0.00'))]
+        # validators=[MinValueValidator(Decimal('0.00'))]
+        validators=[]
     )
+
+    # TODO: switch MinValueValidator out if overpayment = True
+    # TODO: field.clean
+
     currency = models.CharField(
         choices=currencies, max_length=4,
         help_text='The currency used for billing.'
+    )
+
+    overpayment = models.BooleanField(
+        default=False
     )
 
     class Meta:
@@ -224,14 +229,12 @@ class Transaction(models.Model):
                           )
                 raise ValidationError(message)
             if self.amount:
-                # TODO: PaymentOverages
-                # perhaps restrict this to manually created transactions
-                # only?  probably shouldn't be creating new automatic
-                # transactions that exceed the payment amount
-                if self.amount > self.document.amount_to_be_charged_in_transaction_currency:
-                    message = "Amount is greater than the amount that should be charged in order " \
-                              "to pay the billing document."
-                    raise ValidationError(message)
+                # TODO: Overpayments
+                if not self.overpayment:
+                    if self.amount > self.document.amount_to_be_charged_in_transaction_currency:
+                        message = "Amount is greater than the amount that should be charged in order " \
+                                  "to pay the billing document."
+                        raise ValidationError(message)
             else:
                 self.amount = self.document.amount_to_be_charged_in_transaction_currency
 
@@ -262,6 +265,7 @@ class Transaction(models.Model):
 
     @property
     def can_be_consumed(self):
+        # TODO: Overpayments?
         if self.valid_until and self.valid_until < timezone.now():
             return False
 
