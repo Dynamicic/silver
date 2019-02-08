@@ -23,11 +23,11 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from silver.utils.international import currencies
 from silver.models.billing_entities.base import BaseBillingEntity
 from silver.validators import validate_reference
-
 
 PAYMENT_DUE_DAYS = getattr(settings, 'SILVER_DEFAULT_DUE_DAYS', 5)
 
@@ -124,10 +124,19 @@ class Customer(BaseBillingEntity):
 
     @property
     def balance(self):
-        """ Calculate the customer balance, as a function of amount paid
-        for all invoices and invoice totals in the transaction currency.
-        """
+        """ Calculate the customer balance right now, as a function of
+        amount paid for all invoices and invoice totals in the
+        transaction currency. """
 
+        return self.balance_on_date(date=timezone.now().date())
+
+    def balance_on_date(self, date):
+        """ Get the customer balance as of a given billing date.
+
+        :param billing_date: The date to check balance, default=now.
+
+        """
+        # TODO: issue_date after 
         from django.db.models import Sum, Q
 
         Invoice = apps.get_model('silver.Invoice')
@@ -169,4 +178,3 @@ class Customer(BaseBillingEntity):
 
         # Customer's balance.
         return diffs + sum_abs
-

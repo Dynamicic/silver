@@ -48,6 +48,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from silver.documents_generator import DocumentsGenerator
 from silver.subscription_checker import SubscriptionChecker
+from silver.overpayment_checker import OverpaymentChecker
 
 from silver.models import (
     Plan, MeteredFeature, Subscription, Customer, Provider,
@@ -283,8 +284,23 @@ class CustomerAdmin(LiveModelAdmin):
     search_fields = ['customer_reference', 'first_name', 'last_name', 'company',
                      'address_1', 'address_2', 'city', 'zip_code', 'country',
                      'state', 'email', 'meta']
-    actions = ['check_all_subscriptions', 'generate_all_documents']
+    actions = ['check_overpayments', 'check_all_subscriptions', 'generate_all_documents']
     exclude = ['live']
+
+    def check_overpayments(self, request, queryset):
+        if request.POST.get('post'):
+            billing_date = timezone.now().date()
+            OverpaymentChecker().check(billing_date=billing_date,
+                                       customers=queryset)
+
+            msg = 'Successfully checked all user{term} overpayments.'
+            if queryset.count() > 1:
+                msg = msg.format(term='s\'')
+            else:
+                msg = msg.format(term='\'s')
+            self.message_user(request, msg)
+
+            return None
 
     def check_all_subscriptions(self, request, queryset):
         if request.POST.get('post'):

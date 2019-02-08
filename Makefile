@@ -8,8 +8,12 @@ testwatch:
 		--command="flock -n testing.lock make testmod"
 
 # silver.tests.integration.test_documents_transactions_hooks
+# --log-level=INFO
 testmod:
-	DJANGO_SETTINGS_MODULE=settings_test pytest -vv --capture=sys --log-level=INFO --pyargs \
+	DJANGO_SETTINGS_MODULE=settings_test \
+	    pytest -vv \
+	    --capture=sys \
+		--pyargs \
 		silver.tests.integration.test_transactions_overpayments
 
 test:

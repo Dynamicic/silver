@@ -25,6 +25,7 @@ from django.utils import timezone
 
 from silver.documents_generator import DocumentsGenerator
 from silver.subscription_checker import SubscriptionChecker
+from silver.overpayment_checker import OverpaymentChecker
 
 from silver.models import Invoice, Proforma, Transaction, BillingDocumentBase
 from silver.payment_processors.mixins import PaymentProcessorTypes
@@ -64,6 +65,14 @@ def generate_billing_documents(billing_date=None):
         billing_date = timezone.now().date()
 
     DocumentsGenerator().generate(billing_date=billing_date)
+
+@shared_task(base=QueueOnce, once={'graceful': True},
+             time_limit=DOCS_GENERATION_TIME_LIMIT, ignore_result=True)
+def check_overpayments(billing_date=None):
+    if not billing_date:
+        billing_date = timezone.now().date()
+
+    OverpaymentChecker().check(billing_date=billing_date)
 
 
 @shared_task(base=QueueOnce, once={'graceful': True},
