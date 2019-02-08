@@ -1,6 +1,13 @@
 #!/bin/sh
 set -e
 
+if [ "$SILVER_TEST_SHELL" == "yes" ] ; then
+    cd /code/silver && \
+        pip install -r requirements/test.txt && \
+        pip install watchdog
+    exit;
+fi
+
 if [ "$SILVER_MIGRATE" == "yes" ] ; then
 /usr/local/bin/python3 /app/silverintegration/manage.py migrate --noinput
 fi

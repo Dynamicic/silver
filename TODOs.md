@@ -27,6 +27,20 @@ will trigger credit transaction.
   standing in for a manual check sent to customer. Transction can be marked
   as Settled, and invoice marked as Paid.
 
+TODO: need to exclude any current balance correction invoices from the
+calculation? Otherwise, imagine: 
+
+a. management process runs, detects overage of 150
+b. management process issues overpayment refund invoice of -150
+c. if transactions for this aren't settled by the next run, a duplicate
+   overpayment refund invoice could be issued for -150.
+
+Ideas:
+- flag balance correction Invoice
+- new correction invoices may not be automatically issued while unpaid
+  correction invoices exist: 
+
+
 
 ✅ __Manual overpaid Transactions__: transactions currently validate by amount on
 billing doc, if new transaction would result in overpayment, transaction is

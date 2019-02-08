@@ -16,6 +16,8 @@ from __future__ import absolute_import
 
 from pyvat import is_vat_number_format_valid
 
+from decimal import Decimal
+
 from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -29,6 +31,7 @@ from silver.validators import validate_reference
 
 PAYMENT_DUE_DAYS = getattr(settings, 'SILVER_DEFAULT_DUE_DAYS', 5)
 
+import logging
 
 class Customer(BaseBillingEntity):
     # TODO: Overpayments
@@ -124,25 +127,46 @@ class Customer(BaseBillingEntity):
         """ Calculate the customer balance, as a function of amount paid
         for all invoices and invoice totals in the transaction currency.
         """
+
         from django.db.models import Sum, Q
 
-        BillingDocs = apps.get_model('silver.BillingDocumentBase')
-        Transaction = apps.get_model('silver.Transaction')
+        Invoice = apps.get_model('silver.Invoice')
 
-        doc_totals = BillingDocs.objects\
-            .filter(customer=self)\
-            .aggregate(Sum('_total_in_transaction_currency'))
+        this_customer  = Q(customer=self)
+        issued_or_paid = Q(state__in=[Invoice.STATES.PAID])
 
-        doc_sum  = doc_totals['_total_in_transaction_currency__sum']
+        # Balance corrections are invoices with negative values.
+        not_balance_correction = Q(_total_in_transaction_currency__gt=0)
+        is_balance_correction = Q(_total_in_transaction_currency__lt=0)
 
-        state    = Q(state=Transaction.States.Settled)
-        document = Q(invoice__customer=self) | \
-                   Q(proforma__customer=self)
+        docs = Invoice.objects\
+            .filter( this_customer
+                   & issued_or_paid
+                   & not_balance_correction
+                   )
 
-        doc_trnx = Transaction.objects\
-            .filter(document & state)\
-            .aggregate(Sum('amount'))
+        credit_docs = Invoice.objects\
+            .filter( this_customer
+                   & issued_or_paid
+                   & is_balance_correction
+                   )
 
-        trnx_sum = doc_trnx['amount__sum']
+        # Overpaid balances are the difference between the amount paid
+        # by the customer for an invoice, and the invoice total.
+        # 
+        # NB: the .amount_paid_in_transaction_currency is a @property,
+        # and not a database field, so can't be aggregated.
+        # 
 
-        return trnx_sum - doc_sum
+        diffs = Decimal(0.0)
+        for d in  docs:
+            bal = d.amount_paid_in_transaction_currency - d._total_in_transaction_currency
+            diffs += bal
+
+        # Sum up all the payments made to correct a balance.
+        sum_abs = Decimal(0.0)
+        sum_abs += sum([d.amount_paid_in_transaction_currency for d in credit_docs])
+
+        # Customer's balance.
+        return diffs + sum_abs
+
