@@ -3,6 +3,7 @@
 import pytest
 
 from decimal import Decimal
+import datetime as dt
 
 from django.core.management import call_command
 from django.core.exceptions import ValidationError
@@ -492,5 +493,119 @@ class TestTransactionOverpayments(TestCase):
     @pytest.mark.skip
     def test_balance_on_date(self):
         # TODO: test that this correctly resolves on other dates.
-        # customer.balance_on_date(date=timezone.now().date())
-        raise NotImplemented
+        import pytz
+
+        start_date   = dt.datetime(2019, 1,  1, 0, 0, 0, 0, tzinfo=pytz.UTC)
+        invoice_date = dt.datetime(2019, 1, 15, 0, 0, 0, 0, tzinfo=pytz.UTC)
+        payment_date = dt.datetime(2019, 1, 17, 0, 0, 0, 0, tzinfo=pytz.UTC)
+        mid_date     = dt.datetime(2019, 1, 20, 0, 0, 0, 0, tzinfo=pytz.UTC)
+
+        from silver.overpayment_checker import OverpaymentChecker
+
+        # 0 for easy asserting.
+        customer = CustomerFactory(sales_tax_percent=0, currency='USD',
+                                   first_name="Bob", last_name="Smith")
+        customer.save()
+
+        assert customer.balance_on_date(date=start_date) == Decimal(0)
+
+        ## Now we create an invoice situation after the start date...
+
+        # Create customer payment method
+        payment_method = PaymentMethodFactory.create(
+            payment_processor=triggered_processor,
+            customer=customer,
+            canceled=False
+        )
+        payment_method.save()
+
+        # Create a simple invoice
+        entry = DocumentEntryFactory(quantity=1, unit_price=150)
+        entry.save()
+        invoice = InvoiceFactory.create(invoice_entries=[entry],
+                                        due_date=invoice_date,
+                                        customer=customer,
+                                        transaction_currency='USD')
+        invoice.issue()
+        invoice.save()
+
+        # Customer overpays by 2x
+        transaction = TransactionFactory.create(
+            invoice=invoice,
+            payment_method=payment_method,
+            created_at=payment_date,
+            updated_at=payment_date,
+            overpayment=True,
+            amount=300,
+            state=Transaction.States.Initial
+        )
+        transaction.settle()
+        transaction.save()
+
+        invoice.pay()
+
+        assert invoice.state                               == Invoice.STATES.PAID
+        assert customer.balance_on_date(date=start_date)   == Decimal(0)
+        assert customer.balance_on_date(date=payment_date) == Decimal(0)
+        # This balance should be 150, but it's not yet.
+        assert customer.balance_on_date(date=mid_date)     == Decimal(150)
+        return
+
+        # Grab the overpayment defaults
+        op = OverpaymentChecker()
+
+        # Run the overpayment process
+        call_command('check_overpayments',
+                     billing_date=timezone.now().date(),
+                     stdout=self.output)
+
+        # An invoice has been issued a for the correct amount.
+        repayment = Invoice.objects.filter(provider=op.default_provider).first()
+        assert Invoice.objects.filter(provider=op.default_provider).count() == 1
+        assert repayment.total_in_transaction_currency == -150
+        assert repayment.state == Invoice.STATES.ISSUED
+
+        # Customer balance is still the same; payment has not occurred
+        # yet.
+        assert customer.balance == Decimal(150)
+
+        # Run the overpayment process a couple more times, does it duplicate
+        # things?
+        call_command('check_overpayments',
+                     billing_date=timezone.now().date(),
+                     stdout=self.output)
+
+        call_command('check_overpayments',
+                     billing_date=timezone.now().date(),
+                     stdout=self.output)
+
+        call_command('check_overpayments',
+                     billing_date=timezone.now().date(),
+                     stdout=self.output)
+
+        assert Invoice.objects.filter(provider=op.default_provider).count() == 1
+        assert repayment.total_in_transaction_currency == -150
+        assert repayment.state == Invoice.STATES.ISSUED
+
+        # Customer balance is still the same; payment has not occurred
+        # yet.
+        assert customer.balance == Decimal(150)
+
+        # Create the repayment transaction, this is supposed to happen
+        # somewhere automatically.
+        # TODO: process_docs? process_transactions?
+        repayment_tx = Transaction.objects.create(invoice=repayment,
+                                                  amount=repayment.total_in_transaction_currency,
+                                                  overpayment=True,
+                                                  state=Transaction.States.Initial,
+                                                  payment_method=payment_method)
+        repayment_tx.settle()
+        repayment_tx.save()
+
+        # There's one transaction issued for this doc, and it has set
+        # the state of the invoice to PAID. The customer's balance is
+        # now 0.
+        assert repayment.state == Invoice.STATES.PAID
+        assert repayment.transactions.count() == 1
+        assert repayment.amount_paid_in_transaction_currency == -150
+        assert repayment.customer.balance == Decimal(0)

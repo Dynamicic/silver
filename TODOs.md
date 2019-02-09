@@ -20,14 +20,14 @@ will trigger credit transaction.
   - Q: do we really care if the customer overpays for one invoice and underpays
     another, while that invoice is listed as issued and unsettled?
 
-- If amount is nonzero, issue new invoice with a negative amount (this will
+- ✅ If amount is nonzero, issue new invoice with a negative amount (this will
   keep the sum 0 when corrected)
 
-- New invoice Transactions created for customer payment methods; potentially
+- ✅ New invoice Transactions created for customer payment methods; potentially
   standing in for a manual check sent to customer. Transction can be marked
   as Settled, and invoice marked as Paid.
 
-TODO: need to exclude any current balance correction invoices from the
+✅ need to exclude any current balance correction invoices from the
 calculation? Otherwise, imagine: 
 
 a. management process runs, detects overage of 150
@@ -36,7 +36,6 @@ c. if transactions for this aren't settled by the next run, a duplicate
    overpayment refund invoice could be issued for -150.
 
 Ideas:
-- flag balance correction Invoice
 - new correction invoices may not be automatically issued while unpaid
   correction invoices exist: 
 
@@ -50,11 +49,12 @@ invalid and cannot be created.
   process as normal.
 
 
-__Crediting accounts__: Same Transaction model will be used to credit accounts.
+✅ __Crediting accounts__: Same Transaction model will be used to credit accounts.
 
 - Add a property to indicate that the Transaction is a credit, not a payment.
+  (Negative integer for now)
 
-- `Transaction.process` should not be run for these transactions, because we
+- 🚫 `Transaction.process` should not be run for these transactions, because we
   will need to trigger a credit process. State transitions should result in
   States.Settled, as normal., but potentially the initial state should be
   something new.

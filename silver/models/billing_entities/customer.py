@@ -136,7 +136,6 @@ class Customer(BaseBillingEntity):
         :param billing_date: The date to check balance, default=now.
 
         """
-        # TODO: issue_date after 
         from django.db.models import Sum, Q
 
         Invoice = apps.get_model('silver.Invoice')
@@ -145,19 +144,22 @@ class Customer(BaseBillingEntity):
         issued_or_paid = Q(state__in=[Invoice.STATES.PAID])
 
         # Balance corrections are invoices with negative values.
-        not_balance_correction = Q(_total_in_transaction_currency__gt=0)
-        is_balance_correction = Q(_total_in_transaction_currency__lt=0)
+        not_balance_correction = Q(_total_in_transaction_currency__gt = 0)
+        is_balance_correction  = Q(_total_in_transaction_currency__lt = 0)
+        date_filter            = Q(paid_date__lte                    = date)
 
         docs = Invoice.objects\
             .filter( this_customer
                    & issued_or_paid
                    & not_balance_correction
+                   & date_filter
                    )
 
         credit_docs = Invoice.objects\
             .filter( this_customer
                    & issued_or_paid
                    & is_balance_correction
+                   & date_filter
                    )
 
         # Overpaid balances are the difference between the amount paid
