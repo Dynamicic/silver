@@ -58,7 +58,7 @@ class TransactionSerializer(serializers.HyperlinkedModelSerializer):
     payment_method = PaymentMethodUrl(view_name='payment-method-detail',
                                       lookup_field='payment_method',
                                       queryset=PaymentMethod.objects.all())
-    url = TransactionUrl(view_name='transaction-detail', lookup_field='uuid', )
+    url = TransactionUrl(view_name='transaction-detail', lookup_field='uuid',)
     pay_url = TransactionPaymentUrl(lookup_url_kwarg='token',
                                     view_name='payment')
     customer = CustomerUrl(view_name='customer-detail', read_only=True)
@@ -67,10 +67,12 @@ class TransactionSerializer(serializers.HyperlinkedModelSerializer):
     amount = serializers.DecimalField(required=False, decimal_places=2,
                                       max_digits=12, min_value=0)
 
+    overpayment = serializers.BooleanField(required=False)
+
     class Meta:
         model = Transaction
         fields = ('id', 'url', 'customer', 'provider', 'amount', 'currency',
-                  'state', 'proforma', 'invoice', 'can_be_consumed',
+                  'state', 'proforma', 'invoice', 'can_be_consumed', 'overpayment',
                   'payment_processor', 'payment_method', 'pay_url',
                   'valid_until', 'updated_at', 'created_at', 'fail_code',
                   'refund_code', 'cancel_code')
@@ -82,6 +84,7 @@ class TransactionSerializer(serializers.HyperlinkedModelSerializer):
         updateable_fields = ('valid_until', 'success_url', 'failed_url')
         extra_kwargs = {'amount': {'required': False},
                         'currency': {'required': False},
+                        'overpayment': {'required': False},
                         'invoice': {'view_name': 'invoice-detail'},
                         'proforma': {'view_name': 'proforma-detail'}}
 

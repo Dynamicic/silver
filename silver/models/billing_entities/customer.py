@@ -146,7 +146,7 @@ class Customer(BaseBillingEntity):
         # Balance corrections are invoices with negative values.
         not_balance_correction = Q(_total_in_transaction_currency__gt = 0)
         is_balance_correction  = Q(_total_in_transaction_currency__lt = 0)
-        date_filter            = Q(paid_date__lte                    = date)
+        date_filter            = Q(paid_date__lte                     = date)
 
         docs = Invoice.objects\
             .filter( this_customer
