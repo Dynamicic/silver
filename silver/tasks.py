@@ -26,6 +26,7 @@ from django.utils import timezone
 from silver.documents_generator import DocumentsGenerator
 from silver.subscription_checker import SubscriptionChecker
 from silver.overpayment_checker import OverpaymentChecker
+from silver.transaction_retries import TransactionRetryAttempter
 
 from silver.models import Invoice, Proforma, Transaction, BillingDocumentBase
 from silver.payment_processors.mixins import PaymentProcessorTypes
@@ -56,6 +57,12 @@ def generate_pdfs():
 
 DOCS_GENERATION_TIME_LIMIT = getattr(settings, 'DOCS_GENERATION_TIME_LIMIT',
                                      60 * 60)  # default 60m
+
+@shared_task(base=QueueOnce, once={'graceful': True},
+             time_limit=DOCS_GENERATION_TIME_LIMIT, ignore_result=True)
+def retry_failed_transactions():
+    billing_date = timezone.now()
+    TransactionRetryAttempter().check(billing_date=billing_date)
 
 
 @shared_task(base=QueueOnce, once={'graceful': True},

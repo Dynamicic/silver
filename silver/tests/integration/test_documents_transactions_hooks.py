@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 from decimal import Decimal
 import datetime as dt
+import pytest
 
 from django.core.management import call_command
 from django.core.exceptions import ValidationError
@@ -55,6 +56,30 @@ class TestDocumentsTransactionSubscriptions(TestCase):
         """ Confirm that a failed transaction can trigger a subscription
         to suspend. """
 
+        # We'll create a plan that starts here
+        start_date     = dt.date(2019, 1, 1)
+
+        # And the trial date ends here too
+        trial_end_date = dt.date(2019, 1, 1)
+
+        # The customer will use some metered features here
+        metered_usage_on = dt.date(2019, 1, 10)
+
+        # Docs will be generated to bill here.
+        prev_billing_date        = dt.date(2019, 1, 3)
+
+        # So, the customer grace period ends here.
+        #  First billing interval:  dt.date(2019, 2, 1)
+        # 
+        billing_grace_exp        = dt.date(2019, 2, 3)
+
+        # The next billing check should discover that the subscription
+        # is unpaid.
+        #   Billing due date is:       dt.date(2019, 2, 6)
+        #   With the grace period:     dt.date(2019, 2, 9)
+        # 
+        billing_post_grace_check = dt.date(2019, 2, 10)
+
         # Create a customer
         #
         customer = CustomerFactory.create(sales_tax_percent=Decimal('0.00'),
@@ -82,10 +107,9 @@ class TestDocumentsTransactionSubscriptions(TestCase):
                                   generate_after=generate_after,
                                   enabled=True,
                                   amount=Decimal('20.00'),
-                                  trial_period_days=5,
+                                  trial_period_days=1,
                                   metered_features=[metered_feature],
                                   currency=currency)
-        start_date = dt.date(2019, 1, 1)
 
         # Subscribe the customer
         #
@@ -100,29 +124,29 @@ class TestDocumentsTransactionSubscriptions(TestCase):
         mf_log = MeteredFeatureUnitsLogFactory.create(
             subscription=subscription,
             metered_feature=metered_feature,
-            start_date=dt.date(2019, 1, 10),
+            start_date=metered_usage_on,
             end_date=subscription.trial_end,
             consumed_units=consumed_1)
 
-        prev_billing_date = generate_docs_date('2019-01-03')  # During trial period
-        curr_billing_date = subscription.trial_end + ONE_DAY
-        billing_grace_exp = subscription.trial_end + (ONE_DAY * (5 + 30))
-
         # Generate the docs
-        call_command('generate_docs', billing_date=prev_billing_date, stdout=self.output)
+        call_command('generate_docs',
+                     billing_date=prev_billing_date,
+                     stdout=self.output)
 
         proforma = Proforma.objects.first()
 
         assert proforma.proforma_entries.count() != 0
         assert Subscription.objects.all().count() == 1
         assert Invoice.objects.all().count() == 0
-        assert Proforma.objects.all()[0].total == Decimal('0.00')
+        assert Proforma.objects.all()[0].total > Decimal('0.00')
 
         # Consume more units
         mf_log.consumed_units += consumed_2
         mf_log.save()
 
-        call_command('generate_docs', billing_date=billing_grace_exp, stdout=self.output)
+        call_command('generate_docs',
+                     billing_date=billing_grace_exp,
+                     stdout=self.output)
 
         assert Proforma.objects.all().count() != 0
         assert Invoice.objects.all().count() == 0
@@ -143,14 +167,13 @@ class TestDocumentsTransactionSubscriptions(TestCase):
 
         assert Transaction.objects.all().count() != 0
 
-        call_command('check_subscriptions', billing_date=billing_grace_exp, stdout=self.output)
+        call_command('check_subscriptions',
+                     billing_date=billing_post_grace_check,
+                     stdout=self.output)
+
         subscr = Subscription.objects.first()
+
         # Scan for subscriptions with unpaid documents
         logging.debug("subscr %s" % subscr)
         self.assertEqual(subscr.state, Subscription.STATES.CANCELED)
-
-
-    def test_subscription_transaction_declined_suspend_after_grace(self):
-        """ Confirm that a transaction can fail. """
-        pass
 

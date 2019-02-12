@@ -2,6 +2,41 @@
 
 Search the codebase for keywords to find places in the code that relate.
 
+## Payment retries & grace period
+
+* Document models handle the creation of transactions through payment methods.
+
+  - `models.documents.base.create_transaction_for_document`
+      (`post_document_save`)
+  - `models.payment_methods.create_transactions_for_issued_documents`
+      (`post_payment_method_save`)
+
+
+* Transaction instances only represent the cycle of one payment attempt. Once
+  state transition goes from Pending to Settled/Canceled/Failed/Refunded, it
+  should no longer be reused.
+
+* Store days to retry on customer Payment Method instances, using metadata
+  field for now. Maybe: retry after days (1-2), stop retrying after days (4-5).
+  (days after initial payment attempt). 
+  
+    Ex.) Retry after 2 days + stop after 5:
+
+        Day 1: customer is billed
+        Day 2: no success yet (transaction fails)
+        Day 3: initiate retry attempts
+        Day 4: continue retry attempts
+        Day 5: stop retrying
+
+* Create a new process that runs a couple times daily to check:
+
+  - do unpaid documents have failed transactions
+  - do the payment methods on those failed transactions have retry attempt settings
+  - if so, initiate a new transaction for the payment method via the billing doc
+
+* Alter or confirm that the transaction status checking process is emailing
+  admins on transaction failure
+
 ## Overpayments
 
 Concerns 3 model relationships:

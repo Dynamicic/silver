@@ -7,14 +7,15 @@ testwatch:
 		--ignore-directories \
 		--command="flock -n testing.lock make testmod"
 
-# silver.tests.integration.test_documents_transactions_hooks
 # --log-level=INFO
+# silver.tests.integration.test_transactions_overpayments
+# silver.tests.integration.test_documents_transactions_hooks
 testmod:
 	DJANGO_SETTINGS_MODULE=settings_test \
 	    pytest -vv \
 	    --capture=sys \
 		--pyargs \
-		silver.tests.integration.test_transactions_overpayments
+		silver.tests.integration.test_transaction_decline_retries
 
 test:
 	DJANGO_SETTINGS_MODULE=settings_test pytest -vv

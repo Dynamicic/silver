@@ -48,6 +48,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from silver.documents_generator import DocumentsGenerator
 from silver.subscription_checker import SubscriptionChecker
+from silver.transaction_retries import TransactionRetryAttempter
 from silver.overpayment_checker import OverpaymentChecker
 
 from silver.models import (
@@ -645,7 +646,7 @@ class BillingDocumentAdmin(ModelAdmin):
     readonly_fields = ('state', 'total', 'related_document')
     inlines = [DocumentEntryInline]
     actions = ['issue', 'pay', 'cancel', 'clone', 'download_selected_documents',
-               'mark_pdf_for_generation']
+               'mark_pdf_for_generation', 'retry_failed_transactions']
 
     def get_queryset(self, request):
         return super(BillingDocumentAdmin, self).get_queryset(request) \
@@ -653,6 +654,23 @@ class BillingDocumentAdmin(ModelAdmin):
                                                                 'customer',
                                                                 'provider',
                                                                 'pdf')
+
+    def retry_failed_transactions(self, request, queryset):
+        if request.POST.get('post'):
+            billing_date = timezone.now().date()
+            TransactionRetryAttempter().check(billing_date=billing_date,
+                                        documents=queryset,
+                                        force_generate=True)
+
+            msg = 'Successfully checked all documents.'
+            if queryset.count() > 1:
+                msg = msg.format(term='s\'')
+            else:
+                msg = msg.format(term='\'s')
+            self.message_user(request, msg)
+
+            return None
+    retry_failed_transactions.short_description = 'Check the selected documents for failed transactions, and rerun'
 
     @property
     def _model(self):

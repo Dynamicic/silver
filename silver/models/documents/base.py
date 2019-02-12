@@ -105,12 +105,6 @@ def get_billing_documents_kinds():
             for subclass in BillingDocumentBase.__subclasses__())
 
 
-# TODO: Overpayments
-#   Might need a new type of billing document so that corrections can be
-#   issued to deal with Overpayments; assuming transactions could be
-#   issued to correct the balance. Probably also means all payment
-#   gateways need to be able to support issuing corrections.
-
 @python_2_unicode_compatible
 class BillingDocumentBase(models.Model):
     objects = BillingDocumentManager.from_queryset(BillingDocumentQuerySet)()
@@ -573,7 +567,6 @@ class BillingDocumentBase(models.Model):
         return sum([transaction.amount
                     for transaction in self.transactions.filter(state=Transaction.States.Settled)])
 
-    # TODO: Overpayments
     @property
     def amount_overpaid_in_transaction_currency(self):
         return abs(self.amount_to_be_charged_in_transaction_currency)

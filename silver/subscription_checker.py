@@ -98,7 +98,7 @@ class SubscriptionChecker(object):
         if doc.state == doc.__class__.STATES.ISSUED:
             # current billing date is greater than the issued date +
             # grace period
-            if billing_date >= (doc.issue_date + due_grace_period):
+            if billing_date >= (doc.due_date + due_grace_period):
                 return True
 
         return False
