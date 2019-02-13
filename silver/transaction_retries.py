@@ -57,9 +57,12 @@ class TransactionRetryAttempter(object):
             Q(proforma_transactions__state__in=trx_successful_states)
 
         inv = Invoice.objects.exclude(payment_failures & inv_transactions)
-        pro = Proforma.objects.exclude(payment_failures & pro_transactions)
 
-        return chain(inv, pro)
+        # NB: excluding proformas from this flow for now.
+        # pro = Proforma.objects.exclude(payment_failures & pro_transactions)
+        # chain(inv, pro)
+
+        return inv
 
     def check(self, document=None, documents=None, billing_date=None):
         """ The `public` method called when one wants to check unpaid
@@ -188,6 +191,8 @@ class TransactionRetryAttempter(object):
         if not self._can_make_payment_attempts(document, billing_date):
             return
 
+        # TODO: only create once if transaction has .proforma &
+        # .invoice.
         transaction    = self._get_last_failed_for_doc(document)
         payment_method = transaction.payment_method
 

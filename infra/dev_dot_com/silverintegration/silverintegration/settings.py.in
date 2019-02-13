@@ -215,6 +215,12 @@ except:
 
 CELERY_BROKER_URL = _celery_host
 
+# Transaction Failure Emails
+EMAIL_ON_TRANSACTION_FAIL = False
+MANAGERS = (
+    # ('Manager1', 'manager@example.com'),
+)
+
 CELERY_BEAT_SCHEDULE = {
     'generate-pdfs': {
         'task': 'silver.tasks.generate_pdfs',
@@ -231,6 +237,22 @@ CELERY_BEAT_SCHEDULE = {
     # 'fetch-transactions-status': {
     #    'task': 'silver.tasks.fetch_transaction_status',
     #    'schedule': datetime.timedelta(seconds=120),
+    # },
+    # 'process-hooks': {
+    #     'task': 'silverintegration.hooktask.process_hooks',
+    #     'schedule': datetime.timedelta(seconds=40),
+    # },
+    # 'retry-failed-transactions': {
+    #     'task': 'silver.tasks.retry_failed_transactions',
+    #     'schedule': datetime.timedelta(seconds=60),
+    # },
+    # 'check-subscriptions': {
+    #     'task': 'silver.tasks.check_subscriptions',
+    #     'schedule': datetime.timedelta(seconds=60),
+    # },
+    # 'check-overpayments': {
+    #     'task': 'silver.tasks.check_overpayments',
+    #     'schedule': datetime.timedelta(seconds=60),
     # },
 }
 

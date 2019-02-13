@@ -1,6 +1,20 @@
 # Major TODOs
 
-Search the codebase for keywords to find places in the code that relate.
+ * Search the codebase for keywords to find places in the code that relate.
+
+ * Completed features below will need to be turned into documentation. Then
+   delete the sections.
+
+
+## Transaction failure emails
+
+* `EMAIL_ON_TRANSACTION_FAIL` = True
+* `MANAGERS` must be set, or no emails will be sent
+
+Also customize:
+
+* `SERVER_EMAIL`
+* `EMAIL_SUBJECT_PREFIX`
 
 ## Payment retries & grace period
 

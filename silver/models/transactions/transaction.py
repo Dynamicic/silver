@@ -25,6 +25,8 @@ from django_fsm import FSMField, post_transition, transition
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
+from django.core.mail import mail_managers
+
 from django.db import models, transaction
 from django.db.models import Q
 from django.db.models.signals import post_save
@@ -32,6 +34,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible, force_text
 from django.utils.translation import ugettext_lazy as _
+from django.conf import settings
 
 from silver.models import Invoice, Proforma
 from silver.models.transactions.codes import FAIL_CODES, REFUND_CODES, CANCEL_CODES
@@ -52,7 +55,8 @@ class Transaction(models.Model):
         validators=[]
     )
 
-    # TODO: switch MinValueValidator out if overpayment = True
+    # TODO: switch MinValueValidator out if overpayment = True, if
+    # validation fails, set overpayment = True
     # TODO: field.clean
 
     currency = models.CharField(
@@ -322,6 +326,12 @@ def post_transition_callback(sender, instance, name, source, target, **kwargs):
     if issubclass(sender, Transaction):
         setattr(instance, '.recently_transitioned', target)
 
+msg = """ Transaction %(transaction_id)s has failed:
+
+ * Customer ID: %(customer_id)s
+ * Invoice  ID: %(invoice_id)s
+ * Proforma ID: %(proforma_id)s
+ """
 
 @receiver(post_save, sender=Transaction)
 def post_transaction_save(sender, instance, **kwargs):
@@ -333,6 +343,31 @@ def post_transaction_save(sender, instance, **kwargs):
 
     if hasattr(transaction, '.cleaned'):
         delattr(transaction, '.cleaned')
+
+    FAIL_MAIL = getattr(settings, 'EMAIL_ON_TRANSACTION_FAIL', False)
+
+    if FAIL_MAIL:
+        print("bbq")
+        if transaction.state == Transaction.States.Failed:
+            subject = "Transaction %s has failed" % transaction.id
+            kwargs = {
+                # 'fail_silently': True,
+            }
+            msg_kwargs = {
+                'detail': 'Transaction has failed.',
+                'transaction_id': transaction.id,
+                'customer_id': transaction.customer.id,
+                'invoice_id': transaction.invoice.id \
+                    if transaction.invoice else None,
+                'proforma_id':
+                    transaction.proforma.id if transaction.proforma else None
+            }
+
+            try:
+                mail_managers(subject, msg % msg_kwargs, **kwargs)
+            except:
+                logger.info('Unable to send mail - [Models][Transaction]: %s',
+                            msg_kwargs)
 
     if not getattr(transaction, 'previous_instance', None):
         # we know this instance is freshly made as it doesn't have an old_value

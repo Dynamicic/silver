@@ -483,13 +483,21 @@ automatically marked as paid within silver.
       --header 'authorization: Token $YOUR_AUTH_TOKEN' \
       --header 'content-type: application/json'
 
-
 ## TODO
 
+Documentation that needs creating above.
+
+* Document where to find some of the admin tasks
+  - Check subscriptions
+  - Check overpayments / Issue overpayment correction invoice
+  - Hooks
+  - Retry failed transactions for a customer
+* Creating a payment method with a transaction retry definition
 * Subscribe a user to a plan or metered features, and activate the plan
-
-TODO:
-
 * Processing plans
+* Retrying failed transactions
+* Checking subscriptions for failed transactions, seeing that they suspend
+  automatically
+* creating overpayments and checking the customer balance
+* Hook processing
 
-TODO: document
