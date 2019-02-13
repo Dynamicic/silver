@@ -3,6 +3,7 @@
 from decimal import Decimal
 import datetime as dt
 import pytest
+import pytz
 
 from django.core.management import call_command
 from django.core.exceptions import ValidationError
@@ -132,24 +133,82 @@ class TestTransactionDeclineRetries(TestCase):
         assert invoice.transactions.count() == 1
 
     @pytest.mark.django_db
-    def test_rerun_declined_transactions(self):
+    def test_rerun_declined_transactions_for_invoice(self):
         from silver.transaction_retries import TransactionRetryAttempter
         attempts = TransactionRetryAttempter()
+
+        initial_try  = dt.datetime(2019, 1,  1, 0, 0, 0, 0, tzinfo=pytz.UTC)
+        retry_begins = dt.datetime(2019, 1,  3, 0, 0, 0, 0, tzinfo=pytz.UTC)
+        retry_ends   = dt.datetime(2019, 1,  5, 0, 0, 0, 0, tzinfo=pytz.UTC)
 
         customer, payment_method = self._create_default_payment_method()
 
         customer.save()
         payment_method.save()
 
-        trx = TransactionFactory(state=Transaction.States.Failed, payment_method=payment_method)
+        trx = TransactionFactory(state=Transaction.States.Failed,
+                                 created_at=initial_try,
+                                 updated_at=initial_try,
+                                 proforma=None,
+                                 payment_method=payment_method)
         trx.save()
 
-        # payment method is not configured to allow retry attempts.
-        attempts.check(billing_date=timezone.now())
+        assert trx.invoice.transactions.count() == 1
+        # assert trx.proforma.transactions.count() == 1
 
-        # TODO: configure a transaction and payment method that supports
-        # retry attempts and then run it.
+        # payment method is not configured to allow retry attempts.
+        attempts.check(billing_date=initial_try)
+
+        # assert trx.proforma.transactions.count() == 1
+        assert trx.invoice.transactions.count() == 1
+
+        attempts.check(billing_date=retry_begins)
+
+        # TODO: 
         # assert trx.proforma.transactions.count() == 2
         assert trx.invoice.transactions.count() == 2
 
+
+    @pytest.mark.django_db
+    @pytest.mark.skip
+    def test_rerun_declined_transactions_for_pair(self):
+        # TODO: think through: is it the correct behavior that a single
+        # transaction represents both a proforma and invoice? When both
+        # are associated, a new transaction is created for both the
+        # proforma and the invoice, when perhaps one should be created
+        # 
+        # Test may need to be rewritten from the perspective of a
+        # billing doc, not with TransactionFactory handling it all.
+        #
+        from silver.transaction_retries import TransactionRetryAttempter
+        attempts = TransactionRetryAttempter()
+
+        initial_try  = dt.datetime(2019, 1,  1, 0, 0, 0, 0, tzinfo=pytz.UTC)
+        retry_begins = dt.datetime(2019, 1,  3, 0, 0, 0, 0, tzinfo=pytz.UTC)
+        retry_ends   = dt.datetime(2019, 1,  5, 0, 0, 0, 0, tzinfo=pytz.UTC)
+
+        customer, payment_method = self._create_default_payment_method()
+
+        customer.save()
+        payment_method.save()
+
+        trx = TransactionFactory(state=Transaction.States.Failed,
+                                 created_at=initial_try,
+                                 updated_at=initial_try,
+                                 payment_method=payment_method)
+        trx.save()
+
+        assert trx.invoice.transactions.count() == 1
+        # assert trx.proforma.transactions.count() == 1
+
+        # payment method is not configured to allow retry attempts.
+        attempts.check(billing_date=initial_try)
+
+        # assert trx.proforma.transactions.count() == 1
+        assert trx.invoice.transactions.count() == 1
+
+        attempts.check(billing_date=retry_begins)
+
+        assert trx.proforma.transactions.count() == 2
+        assert trx.invoice.transactions.count() == 2
 
