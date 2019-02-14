@@ -596,7 +596,7 @@ issued:
 Documentation that needs creating above.
 
 * Document where to find some of the admin tasks
-  - Check subscriptions
+  - Check subscriptions (`python manage.py check_subscriptions`)
 
 * Subscribe a user to a plan or metered features, and activate the plan
 

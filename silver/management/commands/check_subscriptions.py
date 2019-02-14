@@ -34,6 +34,9 @@ class Command(BaseCommand):
         parser.add_argument('--date',
                             action='store', dest='billing_date', type=date,
                             help='The billing date (format YYYY-MM-DD).')
+        parser.add_argument('--ignore_date',
+                            action='store', dest='ignore_date', type=bool,
+                            help='Ignore the datetime check')
 
     def handle(self, *args, **options):
         translation.activate('en-us')
@@ -50,7 +53,8 @@ class Command(BaseCommand):
 
                 subscription = Subscription.objects.get(id=subscription_id)
                 subscription_check.check(subscription=subscription,
-                                         billing_date=billing_date)
+                                         billing_date=billing_date,
+                                         ignore_date=options['ignore_date'])
                 self.stdout.write('Done.')
             except Subscription.DoesNotExist:
                 msg = 'The subscription with the provided id does not exist.'
@@ -59,6 +63,7 @@ class Command(BaseCommand):
             logger.info('Checking all the available subscriptions; '
                         'billing_date=%s.', billing_date)
 
-            subscription_check.check(billing_date=billing_date)
+            subscription_check.check(billing_date=billing_date,
+                                     ignore_date=options['ignore_date'])
             self.stdout.write('Done.')
 

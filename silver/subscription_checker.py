@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 class SubscriptionChecker(object):
-    def check(self, subscription=None, billing_date=None, customers=None,
-                 force_generate=False):
+    def check(self, subscription=None, billing_date=None,
+              customers=None, force_generate=False, ignore_date=None):
         """
         The `public` method called when one wants to check subscriptions are up to date.
 
@@ -29,30 +29,39 @@ class SubscriptionChecker(object):
         :param customers: the customers for which one wants to generate the
             proformas/invoices.
         :param force_generate: if True, invoices are generated at the date
-            indicated by `billing_date` instead of the normal end of billing
-            cycle.
+            indicated by `billing_date` instead of the normal end of
+            billing cycle.
+        :param ignore_date: if True, ignore date checks and force things
+            to happen
 
         :note
-                If `subscription` is passed, only the documents for that subscription are
+                If `subscription` is passed, only the documents for that
+                subscription are
             generated.
-                If the `customers` parameter is passed, only the docments for those customers are
+                If the `customers` parameter is passed, only the
+                docments for those customers are
             generated.
-                Only one of the `customers` and `subscription` parameters may be passed at a time.
-                If neither the `subscription` nor the `customers` parameters are passed, the
-                documents for all the customers will be generated.
+                Only one of the `customers` and `subscription`
+                parameters may be passed at a time.  If neither the
+                `subscription` nor the `customers` parameters are
+                passed, the documents for all the customers will be
+                generated.
         """
 
         if not subscription:
             customers = customers or Customer.objects.all()
             self._check_all(billing_date=billing_date,
                             customers=customers,
-                            force_generate=force_generate)
+                            force_generate=force_generate,
+                            ignore_date=ignore_date)
         else:
             self._check_for_single_subscription(subscription=subscription,
                                                 billing_date=billing_date,
-                                                force_generate=force_generate)
+                                                force_generate=force_generate,
+                                                ignore_date=ignore_date)
 
-    def _check_all(self, billing_date=None, customers=None, force_generate=False):
+    def _check_all(self, billing_date=None, customers=None,
+                   force_generate=False, ignore_date=None):
         """
         Generates the invoices/proformas for all the subscriptions that should
         be billed.
@@ -82,7 +91,7 @@ class SubscriptionChecker(object):
             'customer': document.customer.id
         })
 
-    def _is_subscription_unpaid_after_grace(self, customer, billing_date, subscription):
+    def _is_subscription_unpaid_after_grace(self, customer, billing_date, subscription, ignore_date):
 
         due_grace_period = timedelta(days=customer.payment_due_days)
 
@@ -98,6 +107,8 @@ class SubscriptionChecker(object):
         if doc.state == doc.__class__.STATES.ISSUED:
             # current billing date is greater than the issued date +
             # grace period
+            if ignore_date:
+                return True
             if billing_date >= (doc.due_date + due_grace_period):
                 return True
 
@@ -116,7 +127,8 @@ class SubscriptionChecker(object):
             # have failed transactions
             if self._is_subscription_unpaid_after_grace(customer,
                                                         billing_date,
-                                                        subscription):
+                                                        subscription,
+                                                        ignore_date):
                 yield subscription
 
 
@@ -159,8 +171,10 @@ class SubscriptionChecker(object):
             self._debug_log("Cancelling ", customer, billing_date, subscription)
             # self._log_subscription_billing(document, subscription)
 
-    def _check_for_single_subscription(self, subscription=None, billing_date=None,
-                                          force_generate=False):
+    def _check_for_single_subscription(self, subscription=None,
+                                       billing_date=None,
+                                       force_generate=False,
+                                       ignore_date=None):
         """
         Generates the billing documents corresponding to a single subscription.
         Usually used when a subscription is ended with `when`=`now`.
@@ -172,7 +186,8 @@ class SubscriptionChecker(object):
 
         if self._is_subscription_unpaid_after_grace(customer,
                                                     billing_date,
-                                                    subscription):
+                                                    subscription,
+                                                    ignore_date):
 
             subscription.cancel(when="now")
             subscription.save()
