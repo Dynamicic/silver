@@ -1,8 +1,13 @@
 ﻿from celery.task import Task
 from celery import group, shared_task
 
+from django.core.serializers.json import DjangoJSONEncoder
+
 import json
 import requests
+
+def nicejson(obj):
+    return json.dumps(obj, cls=DjangoJSONEncoder)
 
 class DeliverHook(Task):
     max_retries = 5
@@ -17,7 +22,7 @@ class DeliverHook(Task):
         try:
             response = requests.post(
                 url=target,
-                data=json.dumps(payload),
+                data=nicejson(payload),
                 headers={'Content-Type': 'application/json'}
             )
             if response.status_code >= 500:

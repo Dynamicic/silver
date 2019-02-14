@@ -134,6 +134,10 @@ class TestTransactionDeclineRetries(TestCase):
         assert invoice.transactions.count() == 1
 
     @pytest.mark.django_db
+    def test_cannot_issue_new_transaction_while_pending(self):
+        return
+
+    @pytest.mark.django_db
     def test_rerun_declined_transactions_for_invoice(self):
         from silver.transaction_retries import TransactionRetryAttempter
         attempts = TransactionRetryAttempter()

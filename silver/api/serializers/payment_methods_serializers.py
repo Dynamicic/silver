@@ -64,6 +64,8 @@ class PaymentMethodSerializer(serializers.HyperlinkedModelSerializer):
     )
     payment_processor = serializers.SerializerMethodField()
 
+    data = serializers.JSONField(required=False)
+
     def get_payment_processor(self, obj):
         return PaymentProcessorSerializer(obj.get_payment_processor(),
                                           context=self.context).data
@@ -71,9 +73,10 @@ class PaymentMethodSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = PaymentMethod
         fields = ('url', 'transactions', 'customer', 'payment_processor_name',
-                  'payment_processor', 'added_at', 'verified',
+                  'payment_processor', 'added_at', 'verified', 'data',
                   'canceled', 'valid_until', 'display_info')
         extra_kwargs = {
+            'data': {'required': False},
             'added_at': {'read_only': True},
             'customer': {'read_only': True, 'lookup_url_kwarg': 'customer_pk'}
         }

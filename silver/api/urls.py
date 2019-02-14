@@ -53,7 +53,7 @@ urlpatterns = [
         transaction_views.TransactionList.as_view(), name='transaction-list'),
     url(r'^customers/(?P<customer_pk>[0-9]+)/transactions/(?P<transaction_uuid>[0-9a-z-]+)/$',
         transaction_views.TransactionDetail.as_view(), name='transaction-detail'),
-    url(r'^customers/(?P<customer_pk>[0-9]+)/transactions/(?P<transaction_uuid>[0-9a-z-]+)/(?P<requested_action>(void|refund|cancel))_request/$',
+    url(r'^customers/(?P<customer_pk>[0-9]+)/transactions/(?P<transaction_uuid>[0-9a-z-]+)/(?P<requested_action>(fail|void|refund|cancel))_request/$',
         transaction_views.TransactionAction.as_view(), name='transaction-action'),
 
     url(r'^payment_processors/$',

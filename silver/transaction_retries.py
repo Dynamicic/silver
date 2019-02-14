@@ -64,13 +64,14 @@ class TransactionRetryAttempter(object):
 
         return inv
 
-    def check(self, document=None, documents=None, billing_date=None):
+    def check(self, document=None, documents=None, billing_date=None, force=None):
         """ The `public` method called when one wants to check unpaid
         billing docs for failed attempts, and then retry them based on
         payment method settings.
 
         :param document:  the document that will be checked
         :param documents: the documents that will be checked
+        :param force:     If True, ignores the time check and issues payments.
         :param billing_date: the date used as billing date. most likely
             this is timezone.now()
 
@@ -80,27 +81,28 @@ class TransactionRetryAttempter(object):
             query and check all existing documents.
         """
 
+        billing_date = billing_date or timezone.now()
+
         if not document:
             if not documents:
                 documents = self._query_payment_failures()
 
             self._check_all(documents=documents,
-                            billing_date=billing_date)
+                            billing_date=billing_date, force=force)
         else:
             self._check_for_single_document(document=document,
-                                            billing_date=billing_date)
+                                            billing_date=billing_date,
+                                            force=force)
 
-    def _check_all(self, documents, billing_date):
+    def _check_all(self, documents, billing_date, force):
         """ Issue new transactions for all documents.
         """
         if billing_date:
             assert type(billing_date) == type(timezone.now())
 
-        billing_date = billing_date or timezone.now()
-
         for document in documents:
             self._check_for_single_document(
-                document, billing_date
+                document, billing_date, force
             )
 
     def _log_document(self, document, transaction):
@@ -144,6 +146,9 @@ class TransactionRetryAttempter(object):
         """
 
         transaction    = self._get_last_failed_for_doc(document)
+        if transaction is None:
+            return False
+
         payment_method = transaction.payment_method
 
         # TODO: document that endless retries are disallowed
@@ -165,7 +170,7 @@ class TransactionRetryAttempter(object):
 
         return can_make_attempts
 
-    def _check_for_single_document(self, document, billing_date):
+    def _check_for_single_document(self, document, billing_date, force):
         """ For a single document that has no successful payments, issue
         a new transaction.
         """
@@ -188,12 +193,15 @@ class TransactionRetryAttempter(object):
 
             return None
 
-        if not self._can_make_payment_attempts(document, billing_date):
-            return
+        if not force:
+            if not self._can_make_payment_attempts(document, billing_date):
+                return
 
         # TODO: only create once if transaction has .proforma &
         # .invoice.
         transaction    = self._get_last_failed_for_doc(document)
+        if transaction is None:
+            return None
         payment_method = transaction.payment_method
 
         updated = create_transaction_for_document(document, payment_method)

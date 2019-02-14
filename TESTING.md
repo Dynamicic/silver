@@ -3,7 +3,7 @@
 The intent of this document is to list the minimal steps to initiate
 server-side processes to test integrations from the client side. Using this
 document, you should be able to get a payment plan processing and issuing
-invoices as well as issue payments to the payment processor.
+invoices as well as issue payments to the payment processor, and much more.
 
 * [Creating an Auth Token](#creating-an-auth-token)
 * [Authenticating](#authenticating)
@@ -31,6 +31,12 @@ invoices as well as issue payments to the payment processor.
    * [set the transaction state to settled](#set-the-transaction-state-to-settled)
    * [Get the invoice to check the status.](#get-the-invoice-to-check-the-status)
 * [TODO](#todo)
+
+## See also
+
+**README.md**
+
+ * Webhook config
 
 ## Creating an Auth Token
 
@@ -94,12 +100,19 @@ Send the following request, substituting `CUSTOMER_ID` with the new customer id.
       --header 'authorization: Token $YOUR_AUTH_TOKEN' \
       --header 'content-type: application/json' \
       --data '{
-        "payment_processor_name": "authorizenet_triggered",
+        "payment_processor_name": "manual",
         "verified": true,
         "canceled": false,
         "valid_until": "2019-10-12T21:33:56.145656Z",
-        "display_info": "testing"
+	    "display_info": "testing",
+	    "data": {
+		    "attempt_retries_after": 2,
+		    "stop_retry_attempts": 5
+	    }
     }'
+
+Note, for the purposes of this test document, we're creating a `manual` payment
+type. `authorizenet_triggered` is also available.
 
 ### Create an invoice provider
 
@@ -191,7 +204,7 @@ returned from Invoice GET requests is incorrect.
 
 ### Run the payment process
 
-This should be running on a cron or [ celery task ][celery], but for now:
+This should be running on a [ celery task ][celery], but for now:
 
 1. Log into the server
 2. Activate the virtual environment
@@ -452,7 +465,7 @@ cancel, and send a request:
 ### add a manual transaction
 
     curl --request POST \
-      --url http://dev.billing.dynamicic.com/silver/customers/11/transactions/ \
+      --url http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/transactions/ \
       --header 'authorization: Token $YOUR_AUTH_TOKEN' \
       --header 'content-type: application/json' \
       --data '{
@@ -483,21 +496,113 @@ automatically marked as paid within silver.
       --header 'authorization: Token $YOUR_AUTH_TOKEN' \
       --header 'content-type: application/json'
 
+## Testing that failed transactions can automatically be recreated
+
+This is slightly harder to test outside of the test suites, unless you're
+willing to wait a while, or log in and run a server process 
+
+### Creating an invoice and payment.
+
+Follow the process above in `Triggering a payment to process`, but do not
+execute the transactions. Now, note the transaction ID and the customer ID for
+the next step.
+
+### Failing the transaction
+
+Run the following transaction to fail the request manually.
+
+    curl --request POST \
+      --url http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/transactions/$TRANSACITON_ID/fail_request/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json'
+
+### Running the server process
+
+Now, either wait for a few days, or log in to the server and issue the
+following management command.
+
+    $ python silverintegration/manage.py retry_failed_transactions \
+        --document=$INVOICE_ID \
+        --force YES
+
+Checking the customer's transactions should result in a new transaction
+appearing.
+
+    curl --request GET \
+      --url 'http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/transactions/?state=initial' \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json'
+
+## Creating a manual payment, and testing overpayment correction
+
+This process is also difficult to test outside of test suites, unless you are
+able to run management commands to substitute for automatically running celery
+processes.
+
+### Create an invoice for an amount
+
+Follow the process in `Triggering a payment to process`.
+
+### Issue a payment for way more than the amount
+
+Note to set `overpayment` to `True`.
+
+    curl --request POST \
+      --url http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/transactions/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json' \
+      --data '{
+        "amount": 9000.01,
+        "currency": "USD",
+        "overpayment": True,
+        "proforma": null,
+        "invoice": "http://dev.billing.dynamicic.com/silver/invoices/$INVOICE_ID/",
+        "payment_method": "http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/payment_methods/$CUSTOMER_MANUAL_PAYMENT_ID/",
+        "valid_until": null
+    }'
+
+
+### Observe the customer balance
+
+Run the following request and observe the `$.balance` parameter.
+
+    curl --request GET \
+      --url http://dev.billing.dynamicic.com/silver/customers/$CUSTOMER_ID/ \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json'
+
+### Run the management command
+
+Now you can optionally issue an invoice to automatically correct for this. This
+is also available as a celery task.
+
+Run the following command.
+
+    $ python silverintegration/manage.py check_overpayments \
+        --customer=$CUSTOMER_ID
+
+### Check customer invoices
+
+Now check the customer's invoices to confirm that a new invoice has been
+issued:
+
+    curl --request GET \
+      --url 'http://dev.billing.dynamicic.com/silver/invoices/?customer=$CUSTOMER_ID' \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --header 'content-type: application/json'
+
 ## TODO
 
 Documentation that needs creating above.
 
 * Document where to find some of the admin tasks
   - Check subscriptions
-  - Check overpayments / Issue overpayment correction invoice
-  - Hooks
-  - Retry failed transactions for a customer
-* Creating a payment method with a transaction retry definition
+
 * Subscribe a user to a plan or metered features, and activate the plan
+
 * Processing plans
-* Retrying failed transactions
+
 * Checking subscriptions for failed transactions, seeing that they suspend
   automatically
-* creating overpayments and checking the customer balance
-* Hook processing
+
 
