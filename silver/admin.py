@@ -670,7 +670,8 @@ class BillingDocumentAdmin(ModelAdmin):
             self.message_user(request, msg)
 
             return None
-    retry_failed_transactions.short_description = 'Check the selected documents for failed transactions, and rerun'
+
+    retry_failed_transactions.short_description = 'Check for failed transactions, and recreate.'
 
     @property
     def _model(self):

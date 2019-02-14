@@ -18,6 +18,9 @@ invoices as well as issue payments to the payment processor, and much more.
 * [Creating and subscribing to plans](#creating-and-subscribing-to-plans)
    * [Create some product codes](#create-some-product-codes)
    * [Create a Plan](#create-a-plan)
+   * [Subscribing a customer to the plan](#subscribing-a-customer-to-the-plan)
+   * [Activating the customer's plan](#activating-the-customers-plan)
+   * [Logging metered feature usage](#logging-metered-feature-usage)
 * [Logging a manual transaction](#logging-a-manual-transaction)
    * [Create a new customer](#create-a-new-customer)
    * [Add a manual payment method](#add-a-manual-payment-method)
@@ -25,11 +28,26 @@ invoices as well as issue payments to the payment processor, and much more.
    * [set invoice to issued](#set-invoice-to-issued)
    * [list customer manual payment methods](#list-customer-manual-payment-methods)
    * [list all customer transactions](#list-all-customer-transactions)
-   * [List customer manual transactions](#list-customer-manual-transactions)
+      * [List customer manual transactions](#list-customer-manual-transactions)
    * [cancel auto-issued manual initial transaction](#cancel-auto-issued-manual-initial-transaction)
    * [add a manual transaction](#add-a-manual-transaction)
    * [set the transaction state to settled](#set-the-transaction-state-to-settled)
    * [Get the invoice to check the status.](#get-the-invoice-to-check-the-status)
+* [Testing that failed transactions can automatically be recreated](#testing-that-failed-transactions-can-automatically-be-recreated)
+   * [Creating an invoice and payment.](#creating-an-invoice-and-payment)
+   * [Failing the transaction](#failing-the-transaction)
+   * [Running the server process](#running-the-server-process)
+* [Creating a manual payment, and testing overpayment correction.](#creating-a-manual-payment-and-testing-overpayment-correction)
+   * [Create an invoice for an amount](#create-an-invoice-for-an-amount)
+   * [Issue a payment for way more than the amount](#issue-a-payment-for-way-more-than-the-amount)
+   * [Observe the customer balance](#observe-the-customer-balance)
+   * [Run the management command](#run-the-management-command)
+   * [Check customer invoices](#check-customer-invoices)
+* [Creating a subscription, and suspending it on failed payment.](#creating-a-subscription-and-suspending-it-on-failed-payment)
+* [Django Admin](#django-admin)
+   * [Hooks](#hooks)
+   * [Revision history](#revision-history)
+   * [Management tasks](#management-tasks)
 * [TODO](#todo)
 
 ## See also
@@ -533,11 +551,15 @@ appearing.
       --header 'authorization: Token $YOUR_AUTH_TOKEN' \
       --header 'content-type: application/json'
 
-## Creating a manual payment, and testing overpayment correction
+## Creating a manual payment, and testing overpayment correction.
 
 This process is also difficult to test outside of test suites, unless you are
 able to run management commands to substitute for automatically running celery
 processes.
+
+Note that this also covers partial payments; during this process you could
+issue multiple payments for amounts less than the invoice total. A final
+payment could be over the amount, and will trigger the same processes.
 
 ### Create an invoice for an amount
 
@@ -591,18 +613,54 @@ issued:
       --header 'authorization: Token $YOUR_AUTH_TOKEN' \
       --header 'content-type: application/json'
 
+## Creating a subscription, and suspending it on failed payment.
+
+This is particularly tricky to test outside of test suites, where time can be
+altered. We will need to come up with a plan here. Here's the overview:
+
+- Create a plan, and subscribe a customer (with a payment method) to the plan
+- Force the first payment to be issued
+- Manually fail the first payment
+- Check subscriptions (`python manage.py check_subscriptions --subscription=123 --ignore_date`)
+- Observe that the subscription status is set to cancelled.
+
+## Django Admin
+
+Some new features have been added to the Django admin.
+
+### Hooks
+
+See `README.md`
+
+### Revision history
+
+Revision history is enabled for edits made within the admin site.
+
+1.) Log in: http://HOSTNAME/silver/admin/
+2.) Navigate to customers
+3.) Create a customer
+4.) Edit the customer name, address, etc.
+5.) Save
+6.) Go back to customer detail
+7.) Click the `History` button in the upper righthand corner
+8.) Choose two items in the change log
+9.) Click compare.
+
+### Management tasks
+
+Some of the automatically running cron tasks are available within the admin
+interface from the `Actions` menu just above the object list.
+
+* Customer view:
+  - Check overpayments
+  - Check all subscriptions
+
+* Invoice view
+  - Check for failed transactions, and recreate.
+
 ## TODO
 
 Documentation that needs creating above.
 
 * Document where to find some of the admin tasks
-  - Check subscriptions (`python manage.py check_subscriptions`)
-
-* Subscribe a user to a plan or metered features, and activate the plan
-
-* Processing plans
-
-* Checking subscriptions for failed transactions, seeing that they suspend
-  automatically
-
-
+* Metered feature stuff
