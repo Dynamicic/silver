@@ -138,24 +138,53 @@ class TransactionRetryAttempter(object):
 
         return transaction
 
-    def _can_make_payment_attempts(self, document, billing_date):
+    def _can_make_payment_attempts(self, document, billing_date,
+                                   force=None, transaction=None):
         """ Check that we can make new payment attempts for the
         document.
 
         :returns Boolean:
         """
 
-        transaction    = self._get_last_failed_for_doc(document)
+        Transaction = apps.get_model('silver.Transaction')
+
+        # Option to skip the query again if we just ran it.
+        if transaction is None:
+            transaction  = self._get_last_failed_for_doc(document)
+
+        # If it's still none, then that means there's no last failed
+        # transaction.
+        # 
         if transaction is None:
             return False
 
-        payment_method = transaction.payment_method
+        # Check to see if there's already another initial or pending
+        # transaction for the document. If there is, then don't issue a
+        # new one.
+        # 
+        has_initial = \
+            document.transactions \
+                .filter(state__in=[Transaction.States.Initial,
+                                   Transaction.States.Pending])\
+                .count()
 
-        # TODO: document that endless retries are disallowed
+        if has_initial:
+            return False
+
+        # Check to see if the payment method allows for issuing
+        # re-attempts. If nothing is defined, no reattempts will be
+        # made.
+        # 
+        payment_method = transaction.payment_method
         if not payment_method.data.get('attempt_retries_after') and \
            not payment_method.data.get('stop_retry_attempts'):
             return False
 
+        if force:
+            return True
+
+        # Prepare the time comparisons.
+        # 
         _attempt_retries_after = payment_method.data.get('attempt_retries_after')
         _stop_retry_attempts   = payment_method.data.get('stop_retry_attempts')
 
@@ -166,7 +195,7 @@ class TransactionRetryAttempter(object):
         trx_no_more_retries = transaction.created_at + stop_retry_attempts
 
         can_make_attempts = trx_allow_retries <= billing_date and \
-                            billing_date <= trx_no_more_retries
+                            billing_date      <= trx_no_more_retries
 
         return can_make_attempts
 
@@ -193,18 +222,19 @@ class TransactionRetryAttempter(object):
 
             return None
 
-        if not force:
-            if not self._can_make_payment_attempts(document, billing_date):
-                return
-
-        # TODO: only create once if transaction has .proforma &
-        # .invoice.
-        transaction    = self._get_last_failed_for_doc(document)
+        transaction = self._get_last_failed_for_doc(document)
         if transaction is None:
             return None
-        payment_method = transaction.payment_method
 
-        updated = create_transaction_for_document(document, payment_method)
+        if not self._can_make_payment_attempts(document,
+                                               billing_date,
+                                               force=force,
+                                               transaction=transaction):
+            return None
+
+        payment_method = transaction.payment_method
+        updated        = create_transaction_for_document(document,
+                                                         payment_method)
         updated.save()
 
         self._log_document(document, updated)

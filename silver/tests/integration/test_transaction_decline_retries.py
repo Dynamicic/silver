@@ -135,7 +135,46 @@ class TestTransactionDeclineRetries(TestCase):
 
     @pytest.mark.django_db
     def test_cannot_issue_new_transaction_while_pending(self):
-        return
+        """ The TransactionRetryAttempter should only be able to issue
+        transactions while there are no pending re-attempted Transactions
+        with state Issued. """
+
+        from silver.transaction_retries import TransactionRetryAttempter
+        attempts = TransactionRetryAttempter()
+
+        initial_try  = dt.datetime(2019, 1,  1, 0, 0, 0, 0, tzinfo=pytz.UTC)
+        retry_begins = dt.datetime(2019, 1,  3, 0, 0, 0, 0, tzinfo=pytz.UTC)
+        retry_ends   = dt.datetime(2019, 1,  5, 0, 0, 0, 0, tzinfo=pytz.UTC)
+
+        customer, payment_method = self._create_default_payment_method()
+
+        customer.save()
+        payment_method.save()
+
+        trx = TransactionFactory(state=Transaction.States.Failed,
+                                 created_at=initial_try,
+                                 updated_at=initial_try,
+                                 proforma=None,
+                                 payment_method=payment_method)
+        trx.save()
+
+        assert trx.invoice.transactions.count() == 1
+
+        # Spam some attempts
+        attempts.check(billing_date=retry_begins)
+        attempts.check(billing_date=retry_begins)
+        attempts.check(billing_date=retry_begins)
+        attempts.check(billing_date=retry_begins)
+
+        assert trx.invoice.transactions.count() == 2
+
+        # Spam some attempts with force. 
+        attempts.check(billing_date=retry_begins, force=True)
+        attempts.check(billing_date=retry_begins, force=True)
+        attempts.check(billing_date=retry_begins, force=True)
+        attempts.check(billing_date=retry_begins, force=True)
+
+        assert trx.invoice.transactions.count() == 2
 
     @pytest.mark.django_db
     def test_rerun_declined_transactions_for_invoice(self):
@@ -159,31 +198,48 @@ class TestTransactionDeclineRetries(TestCase):
         trx.save()
 
         assert trx.invoice.transactions.count() == 1
-        # assert trx.proforma.transactions.count() == 1
 
-        # payment method is not configured to allow retry attempts.
+        # NB: payment method is not configured to allow retry attempts.
         attempts.check(billing_date=initial_try)
-
-        # assert trx.proforma.transactions.count() == 1
         assert trx.invoice.transactions.count() == 1
 
         attempts.check(billing_date=retry_begins)
-
-        # TODO: 
-        # assert trx.proforma.transactions.count() == 2
         assert trx.invoice.transactions.count() == 2
 
+    @pytest.mark.django_db
+    def test_management_command(self):
+        initial_try  = dt.datetime(2019, 1,  1, 0, 0, 0, 0, tzinfo=pytz.UTC)
+        retry_begins = dt.datetime(2019, 1,  3, 0, 0, 0, 0, tzinfo=pytz.UTC)
+        retry_ends   = dt.datetime(2019, 1,  5, 0, 0, 0, 0, tzinfo=pytz.UTC)
+
+        customer, payment_method = self._create_default_payment_method()
+
+        customer.save()
+        payment_method.save()
+
+        trx = TransactionFactory(state=Transaction.States.Failed,
+                                 created_at=initial_try,
+                                 updated_at=initial_try,
+                                 proforma=None,
+                                 payment_method=payment_method)
+        trx.save()
+
+        assert trx.invoice.transactions.count() == 1
+
+        call_command('retry_failed_transactions',
+                     billing_date=initial_try,
+                     stdout=self.output)
+
+        assert trx.invoice.transactions.count() == 1
+
+        call_command('retry_failed_transactions',
+                     billing_date=retry_begins,
+                     stdout=self.output)
+
+        assert trx.invoice.transactions.count() == 2
 
     @pytest.mark.django_db
     def test_rerun_declined_transactions_for_pair(self):
-        # TODO: think through: is it the correct behavior that a single
-        # transaction represents both a proforma and invoice? When both
-        # are associated, a new transaction is created for both the
-        # proforma and the invoice, when perhaps one should be created
-        # 
-        # Test may need to be rewritten from the perspective of a
-        # billing doc, not with TransactionFactory handling it all.
-        #
         from silver.transaction_retries import TransactionRetryAttempter
         attempts = TransactionRetryAttempter()
 
@@ -203,17 +259,12 @@ class TestTransactionDeclineRetries(TestCase):
         trx.save()
 
         assert trx.invoice.transactions.count() == 1
-        # assert trx.proforma.transactions.count() == 1
 
         # payment method is not configured to allow retry attempts.
         attempts.check(billing_date=initial_try)
-
-        # assert trx.proforma.transactions.count() == 1
         assert trx.invoice.transactions.count() == 1
 
         attempts.check(billing_date=retry_begins)
-
-        # assert trx.proforma.transactions.count() == 2
         assert trx.invoice.transactions.count() == 2
 
     @override_settings(EMAIL_ON_TRANSACTION_FAIL=True,
