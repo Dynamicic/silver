@@ -214,11 +214,19 @@ the Invoice and Customer.
 
 ### Get the invoice PDF
 
+The PDF generation process runs every minute on the test server, so after the
+invoice has been issued, the document should be available with the following:
+
     curl --request GET \
       --url http://dev.billing.dynamicic.com/silver/invoices/$INVOICE_ID.pdf
 
 This will redirect to the appropriate path. For now, the `pdf_url` attribute
 returned from Invoice GET requests is incorrect.
+
+If you need to force the document generation process to run, run the following
+management command:
+
+    $ python silverintegration/manage.py generate_pdfs
 
 ### Run the payment process
 
