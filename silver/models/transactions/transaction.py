@@ -138,6 +138,14 @@ class Transaction(models.Model):
     def process(self):
         pass
 
+    @transition(field=state, source=States.Initial, target=States.Pending)
+    def process_credit(self):
+        """ Provides more or less the same functionality as
+        `Transaction.process`, but intended as a convenience function
+        for payment processors where transactions to settle overpayment
+        balances need different treatment in the processor's API. """
+        pass
+
     @transition(field=state, source=[States.Initial, States.Pending],
                 target=States.Settled)
     def settle(self):

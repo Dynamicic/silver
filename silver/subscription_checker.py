@@ -73,11 +73,11 @@ class SubscriptionChecker(object):
         for customer in customers:
             if customer.consolidated_billing:
                 self._check_for_user_with_consolidated_billing(
-                    customer, billing_date, force_generate
+                    customer, billing_date, force_generate, ignore_date
                 )
             else:
                 self._check_for_user_without_consolidated_billing(
-                    customer, billing_date, force_generate
+                    customer, billing_date, force_generate, ignore_date
                 )
 
     def _log_subscription_billing(self, document, subscription):
@@ -91,7 +91,10 @@ class SubscriptionChecker(object):
             'customer': document.customer.id
         })
 
-    def _is_subscription_unpaid_after_grace(self, customer, billing_date, subscription, ignore_date):
+    def _is_subscription_unpaid_after_grace(self, customer,
+                                            billing_date,
+                                            subscription,
+                                            ignore_date):
 
         due_grace_period = timedelta(days=customer.payment_due_days)
 
@@ -114,7 +117,11 @@ class SubscriptionChecker(object):
 
         return False
 
-    def get_subscriptions_with_doc_issued_and_past_grace(self, customer, billing_date, force_generate):
+    def get_subscriptions_with_doc_issued_and_past_grace(self,
+                                                         customer,
+                                                         billing_date,
+                                                         force_generate,
+                                                         ignore_date):
 
         due_grace_period = timedelta(days=customer.payment_due_days)
 
@@ -132,37 +139,49 @@ class SubscriptionChecker(object):
                 yield subscription
 
 
-    def _check_for_user_with_consolidated_billing(self, customer, billing_date, force_generate):
+    def _check_for_user_with_consolidated_billing(self,
+                                                  customer,
+                                                  billing_date,
+                                                  force_generate,
+                                                  ignore_date):
         """
         Checks the billing documents for all the subscriptions of a customer
         who uses consolidated billing.
         """
 
-        # For each provider there will be one invoice or proforma. The cache is necessary as a
-        # certain customer might have more than one subscription
-        # => all the subscriptions belonging to the same provider will be added to the same document
+        # For each provider there will be one invoice or proforma. The
+        # cache is necessary as a certain customer might have more than
+        # one subscription => all the subscriptions belonging to the
+        # same provider will be added to the same document
 
         existing_provider_documents = {}
-        for subscription in self.get_subscriptions_with_doc_issued_and_past_grace(customer,
-                                                                                  billing_date,
-                                                                                  force_generate):
+        subs = self.get_subscriptions_with_doc_issued_and_past_grace(customer,
+                                                                     billing_date,
+                                                                     force_generate,
+                                                                     ignore_date)
+        for subscription in subs:
             subscription.cancel(when="now")
             subscription.save()
             self._debug_log("Cancelling ", customer, billing_date, subscription)
             # self._log_subscription_billing(document, subscription)
 
 
-    def _check_for_user_without_consolidated_billing(self, customer, billing_date,
-                                                        force_generate):
+    def _check_for_user_without_consolidated_billing(self, customer,
+                                                     billing_date,
+                                                     force_generate,
+                                                     ignore_date):
         """
         Generates the billing documents for all the subscriptions of a customer
         who does not use consolidated billing.
         """
 
-        # The user does not use consolidated_billing => add each subscription to a separate document
-        for subscription in self.get_subscriptions_with_doc_issued_and_past_grace(customer,
-                                                                                  billing_date,
-                                                                                  force_generate):
+        # The user does not use consolidated_billing => add each
+        # subscription to a separate document
+        subs = self.get_subscriptions_with_doc_issued_and_past_grace(customer,
+                                                                     billing_date,
+                                                                     force_generate,
+                                                                     ignore_date)
+        for subscription in subs:
             provider = subscription.plan.provider
 
             subscription.cancel(when="now")
@@ -171,7 +190,8 @@ class SubscriptionChecker(object):
             self._debug_log("Cancelling ", customer, billing_date, subscription)
             # self._log_subscription_billing(document, subscription)
 
-    def _check_for_single_subscription(self, subscription=None,
+    def _check_for_single_subscription(self,
+                                       subscription=None,
                                        billing_date=None,
                                        force_generate=False,
                                        ignore_date=None):

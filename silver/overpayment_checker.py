@@ -139,12 +139,21 @@ class OverpaymentChecker(object):
 
         current_balance = customer.balance_on_date(billing_date)
 
+        # Less than zero balance means that the customer has not yet
+        # paid an invoice.
+        # 
+        # Greater than zero balance means that the customer has an
+        # overpaid balance that needs to be corrected.
+        # 
+        if current_balance <= 0 or current_balance <= Decimal(0.0):
+            return
+
         if self._does_customer_have_existing_pending_repayment(customer,
                                                                current_balance,
                                                                provider):
             return
 
-        desc = "Adjusting for an overpayment to a previous invoice."
+        desc  = "Adjusting for an overpayment to a previous invoice."
         entry = DocumentEntry.objects.create(quantity=1,
                                              unit_price=-current_balance,
                                              description=desc)

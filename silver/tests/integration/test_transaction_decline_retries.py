@@ -284,3 +284,26 @@ class TestTransactionDeclineRetries(TestCase):
         transaction.save()
 
         self.assertEqual(len(mail.outbox), 1)
+
+
+    @pytest.mark.skip
+    def test_subscription_failed_payment_retry(self):
+        """ A subscription creates an invoice, the attempt fails.
+        """
+
+        pass
+
+    @pytest.mark.skip
+    def test_subscription_failed_payment_retries_after_canceled(self):
+        """ Do we want to be able to issue repayment attempts on a
+        subscription where a failed transaction has lead to subscription
+        cancellation?
+
+        Also: need to test that subscriptions won't be cancelled if
+        there is a payment attempt in progress when the customer payment
+        grace period ends.
+
+        """
+
+        pass
+
