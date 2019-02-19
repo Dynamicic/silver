@@ -17,7 +17,9 @@ testmod:
 		silver.tests.integration.test_documents_transactions_hooks \
 		silver.tests.integration.test_transaction_decline_retries \
 		silver.tests.integration.test_transactions_overpayments \
-		silver.tests.api.test_customer_overpayments
+		silver.tests.api.test_customer_overpayments \
+		silver.tests.unit.test_metered_features
+
 
 test:
 	DJANGO_SETTINGS_MODULE=settings_test pytest -vv

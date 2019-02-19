@@ -6,116 +6,39 @@
    delete the sections.
 
 
-## Transaction failure emails
+## Metered Feature relationships
 
-* `EMAIL_ON_TRANSACTION_FAIL` = True
-* `MANAGERS` must be set, or no emails will be sent
+### Needs:
 
-Also customize:
+* "included units" for a metered feature, dependent on the number "consumed
+  units" of another metered feature. E.g.  7000 outbound minutes included
+  monthly per agent seat purchased?
 
-* `SERVER_EMAIL`
-* `EMAIL_SUBJECT_PREFIX`
+* Minimum number of units associated with metered feature that are included
+  every month
 
-## Payment retries & grace period
+* Need a way to indicate a metered feature is pre-billed at the start of the
+  billing cycle. Currently only available on plan level.
 
-* Document models handle the creation of transactions through payment methods.
+### Pre-billed and included units
 
-  - `models.documents.base.create_transaction_for_document`
-      (`post_document_save`)
-  - `models.payment_methods.create_transactions_for_issued_documents`
-      (`post_payment_method_save`)
+* add an optional pre-billed minimum: when subscription starts, metered usage
+  under X is pre-billed. When usage goes over this limit, it goes into normal
+  billing.
 
+### Linked feature calculation
 
-* Transaction instances only represent the cycle of one payment attempt. Once
-  state transition goes from Pending to Settled/Canceled/Failed/Refunded, it
-  should no longer be reused.
+As one feature increments, another feature's allowable pre-billed minimum
+should be able to change.
 
-* Store days to retry on customer Payment Method instances, using metadata
-  field for now. Maybe: retry after days (1-2), stop retrying after days (4-5).
-  (days after initial payment attempt). 
-  
-    Ex.) Retry after 2 days + stop after 5:
+* Add a MeteredFeature DB field for the related feature to base the calculation
+  on.
 
-        Day 1: customer is billed
-        Day 2: no success yet (transaction fails)
-        Day 3: initiate retry attempts
-        Day 4: continue retry attempts
-        Day 5: stop retrying
+* Use [ F expressions ][fexp] to calculate on a model field.
 
-* Create a new process that runs a couple times daily to check:
-
-  - do unpaid documents have failed transactions
-  - do the payment methods on those failed transactions have retry attempt settings
-  - if so, initiate a new transaction for the payment method via the billing doc
-
-* Alter or confirm that the transaction status checking process is emailing
-  admins on transaction failure
-
-## Overpayments
-
-Concerns 3 model relationships:
-
- - Customer
- - Transaction
- - Document
-
-__Management command and task__: settle up balance and issue invoice that
-will trigger credit transaction.
-
-- ✅ Calculating overpayment: Customer @property for balance. sum amounts paid
-  by customer over all successful transactions associated with paid invoices
-  minus the sum of document total
-
-  - Q: do we really care if the customer overpays for one invoice and underpays
-    another, while that invoice is listed as issued and unsettled?
-
-- ✅ If amount is nonzero, issue new invoice with a negative amount (this will
-  keep the sum 0 when corrected)
-
-- ✅ New invoice Transactions created for customer payment methods; potentially
-  standing in for a manual check sent to customer. Transction can be marked
-  as Settled, and invoice marked as Paid.
-
-✅ need to exclude any current balance correction invoices from the
-calculation? Otherwise, imagine: 
-
-a. management process runs, detects overage of 150
-b. management process issues overpayment refund invoice of -150
-c. if transactions for this aren't settled by the next run, a duplicate
-   overpayment refund invoice could be issued for -150.
-
-Ideas:
-- new correction invoices may not be automatically issued while unpaid
-  correction invoices exist: 
+* Possibly: adjust MeteredFeatureLog calculation to either work as normal, or
+  rely on this calculated field when summing up invoice totals.
 
 
-
-✅ __Manual overpaid Transactions__: transactions currently validate by amount on
-billing doc, if new transaction would result in overpayment, transaction is
-invalid and cannot be created.
-
-- Add property on Transaction that can skip this validation, and otherwise
-  process as normal.
-
-
-✅ __Crediting accounts__: Same Transaction model will be used to credit accounts.
-
-- Add a property to indicate that the Transaction is a credit, not a payment.
-  (Negative integer for now)
-
-- 🚫 `Transaction.process` should not be run for these transactions, because we
-  will need to trigger a credit process. State transitions should result in
-  States.Settled, as normal., but potentially the initial state should be
-  something new.
-
-    class Transaction(object):
-        ... etc ... 
-
-        @transition(field=state, source=States.Initial, target=States.Pending)
-        def process(self):
-            pass
-
-Transaction needs to be checkable for status as normal: States.Pending ->
-States.Settled
-
+  [fexp]: https://docs.djangoproject.com/en/1.11/topics/db/queries/
 
