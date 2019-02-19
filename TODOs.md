@@ -26,7 +26,7 @@
   under X is pre-billed. When usage goes over this limit, it goes into normal
   billing.
 
-### Linked feature calculation
+### Linked feature calculation / LinkedFeaturesFeature
 
 As one feature increments, another feature's allowable pre-billed minimum
 should be able to change.

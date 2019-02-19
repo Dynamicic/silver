@@ -190,4 +190,3 @@ class TestMeteredFeatures(TestCase):
         assert anno_carbones.first().calculated     == Decimal('30.00')
 
 
-

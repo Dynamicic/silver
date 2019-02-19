@@ -150,6 +150,9 @@ class MeteredFeature(models.Model):
         max_digits=19, decimal_places=4, validators=[MinValueValidator(0.0)],
         help_text='The price per unit.',
     )
+    # TODO: LinkedFeaturesFeature
+    # This can potentially be calculated if there is a model
+    # relationship with another MeteredFeature.
     included_units = models.DecimalField(
         max_digits=19, decimal_places=4, validators=[MinValueValidator(0.0)],
         help_text='The number of included units per plan interval.'
