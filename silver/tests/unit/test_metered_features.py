@@ -70,11 +70,16 @@ class TestMeteredFeatures(TestCase):
         # Timeframes
         start_date = dt.date(2019, 1, 1)
 
+        # We log some seat changes
+        seat_increment_usage_start_date = dt.date(2019, 1, 2)
+        seat_increment_usage_end_date   = dt.date(2019, 1, 3)
+
+        # Feature usage begins
         feature_usage_start_date = dt.date(2019, 1, 5)
         feature_usage_end_date   = dt.date(2019, 1, 6)
 
         first_billing_check = dt.date(2019, 1, 15)
-        first_invoice_out   = dt.date(2019, 2, 3)
+        first_invoice_out   = dt.date(2019, 2, 10)
 
         # Set it up
         customer = CustomerFactory.create(sales_tax_percent=Decimal('0.00'))
@@ -84,19 +89,25 @@ class TestMeteredFeatures(TestCase):
         # included units, hopefully the customer won't be billed for
         # usage under that limit.
         # 
-        mf_price = Decimal('2.0')
-        metered_feature = MeteredFeatureFactory(
-            name="Charcoal Base Units",
-            unit="Barrels",
-            included_units=Decimal('0.00'),
-            price_per_unit=mf_price)
-
         seat_price = Decimal('0.0')
         seat_feature = MeteredFeatureFactory(
             name="Charcoal Users",
             unit="Seats",
-            included_units=Decimal('1.00'),
+            included_units=Decimal('0.00'),
             price_per_unit=seat_price)
+
+        mf_price = Decimal('2.0')
+        metered_feature = MeteredFeatureFactory(
+            name="Charcoal Base Units",
+            unit="Barrels (per seat)",
+            included_units=Decimal('5.00'),
+            price_per_unit=mf_price,
+            linked_feature=seat_feature,
+            # TODO: doc. For now it's basic:
+            #  multiply
+            #  add
+            #  subtract
+            included_units_calculation="multiply")
 
         # Create the plan
         plan = PlanFactory.create(interval=Plan.INTERVALS.MONTH,
@@ -117,6 +128,25 @@ class TestMeteredFeatures(TestCase):
         subscription.save()
 
         # Log some usage
+        # Add some seats
+        one_seat = Decimal('1.0')
+        seat_log = MeteredFeatureUnitsLogFactory.create(
+                                                subscription=subscription,
+                                                metered_feature=seat_feature,
+                                                start_date=seat_increment_usage_start_date,
+                                                end_date=seat_increment_usage_start_date,
+                                                consumed_units=one_seat)
+
+        # We up the increment here to prove that changing the value
+        # doesn't mess up a calculation.
+        two_seats = Decimal('1.0')
+        seat_log = MeteredFeatureUnitsLogFactory.create(
+                                                subscription=subscription,
+                                                metered_feature=seat_feature,
+                                                start_date=seat_increment_usage_end_date,
+                                                end_date=seat_increment_usage_end_date,
+                                                consumed_units=two_seats)
+
         consumed = Decimal('15.00')
         mf_log = MeteredFeatureUnitsLogFactory.create(
                                                 subscription=subscription,
@@ -124,15 +154,6 @@ class TestMeteredFeatures(TestCase):
                                                 start_date=feature_usage_start_date,
                                                 end_date=feature_usage_end_date,
                                                 consumed_units=consumed)
-
-        # Add some seats
-        two_seats = Decimal('2.0')
-        seat_log = MeteredFeatureUnitsLogFactory.create(
-                                                subscription=subscription,
-                                                metered_feature=seat_feature,
-                                                start_date=start_date,
-                                                end_date=feature_usage_end_date,
-                                                consumed_units=two_seats)
 
 
         call_command('generate_docs',
@@ -160,33 +181,14 @@ class TestMeteredFeatures(TestCase):
         assert proforma.proforma_entries.count() == 1
         assert Invoice.objects.all().count() == 0
         assert Proforma.objects.all()[0].total == Decimal('10.00')
+        metered_entry = proforma.proforma_entries.first()
 
         # Get our logged features
         # 
         features_log = MeteredFeatureUnitsLog.objects.filter(
             subscription=subscription)
-        assert features_log.count() == 2
+        assert features_log.count() == 3
 
         _metered = features_log.filter(metered_feature=metered_feature)
         assert _metered.count() == 1
-
-        # Gonna mock our seat / units calc here first.
-
-        # Subquery for the associated seat feature. Will adjust models
-        # to store this relationship in primary keys.
-        # 
-        seat_subq = Subquery(
-            MeteredFeatureUnitsLog.objects.filter(subscription=subscription,
-                                                 metered_feature=seat_feature)\
-                                          .values_list('consumed_units',
-                                                       flat=True)
-        )
-
-        anno_carbones = _metered.annotate(seats=seat_subq)\
-                                .annotate(calculated=F('consumed_units') * F('seats'))
-
-        assert anno_carbones.first().seats          == Decimal('2.00')
-        assert anno_carbones.first().consumed_units == Decimal('15.00')
-        assert anno_carbones.first().calculated     == Decimal('30.00')
-
 

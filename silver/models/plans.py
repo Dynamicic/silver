@@ -166,6 +166,15 @@ class MeteredFeature(models.Model):
         'ProductCode', help_text='The product code for this plan.'
     )
 
+    linked_feature = UnsavedForeignKey(
+        'self', null=True, blank=True, help_text="A related feature."
+    )
+
+    included_units_calculation = models.CharField(
+        max_length=200, null=True, blank=True,
+        help_text='A formula to calculate included units.'
+    )
+
     class Meta:
         ordering = ('name',)
 

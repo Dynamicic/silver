@@ -181,6 +181,38 @@ class Subscription(models.Model):
     )
     meta = JSONField(blank=True, null=True, default={})
 
+    def _get_included_units_calc(self, metered_feature,
+                                 proration_percent, start_date,
+                                 end_date):
+        import operator
+
+        if metered_feature.linked_feature:
+
+            # Get the latest consumed total as of now.
+            consumed_link = self._get_consumed_units(
+                metered_feature.linked_feature,
+                proration_percent,
+                start_date,
+                end_date)
+
+            # keeping it to simple math until we find we need a formula
+            # parser.
+            funcs = {
+                'add': (operator.add, 0),
+                'subtract': (operator.sub, 0),
+                'multiply': (operator.mul, 1),
+            }
+            default = funcs.get('multiply')
+
+            f, initial = funcs.get(metered_feature.linked_feature.included_units_calculation,
+                                   default)
+
+            params = (metered_feature.included_units, consumed_link)
+            calc = reduce(f, params, initial)
+            return calc
+
+        return metered_feature.included_units
+
     def clean(self):
         errors = dict()
         if self.start_date and self.trial_end:
@@ -893,7 +925,11 @@ class Subscription(models.Model):
 
     def _get_consumed_units(self, metered_feature, proration_percent,
                             start_date, end_date):
-        included_units = (proration_percent * metered_feature.included_units)
+        incl = self._get_included_units_calc(metered_feature,
+                                             proration_percent,
+                                             start_date, end_date)
+
+        included_units = (proration_percent * incl)
 
         qs = self.mf_log_entries.filter(metered_feature=metered_feature,
                                         start_date__gte=start_date,
@@ -922,11 +958,17 @@ class Subscription(models.Model):
 
         mfs_total = Decimal('0.00')
         for metered_feature in self.plan.metered_features.all():
+            # LinkedFeaturesFeature
             consumed_units = self._get_consumed_units(
                 metered_feature, percent, start_date, end_date)
+            included_units = self._get_included_units_calc(metered_feature,
+                                                           percent,
+                                                           start_date,
+                                                           end_date)
 
             context.update({'metered_feature': metered_feature,
                             'unit': metered_feature.unit,
+                            'included': included_units,
                             'name': metered_feature.name,
                             'product_code': metered_feature.product_code})
 
