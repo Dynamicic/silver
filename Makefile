@@ -1,6 +1,12 @@
 full-test: test
 
-testwatch:
+/tmp/test.env: 
+	cd /code/silver
+	pip install -r requirements/test.txt
+	pip install watchdog
+	touch /tmp/test.env
+
+testwatch: /tmp/test.env
 	watchmedo shell-command \
 		--patterns="*.py" \
 		--recursive \
