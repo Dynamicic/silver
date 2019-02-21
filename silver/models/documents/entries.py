@@ -103,7 +103,7 @@ class DocumentEntry(models.Model):
         )
 
     def __str__(self):
-        s = u'{descr} - {unit} - {unit_price} - {quantity} - {product_code}'
+        s = u'{descr} - {product_code} - {unit_price}/{unit} - used {quantity} {unit}'
         return s.format(
             descr=self.description,
             unit=self.unit,
