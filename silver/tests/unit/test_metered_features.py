@@ -8,6 +8,7 @@ import datetime as dt
 import json
 
 from django.core.management import call_command
+from silver.management.commands.generate_docs import date as generate_docs_date
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -192,3 +193,89 @@ class TestMeteredFeatures(TestCase):
         _metered = features_log.filter(metered_feature=metered_feature)
         assert _metered.count() == 1
 
+
+    @pytest.mark.django_db
+    def test_prorated_subscription_with_consumed_mfs_overflow(self):
+        # Set up the timescale.
+        start_date        = dt.date(2018, 2, 15)
+        prev_billing_date = generate_docs_date('2018-02-15')
+        curr_billing_date = generate_docs_date('2018-03-02')
+
+        seat_feature_usage_set = dt.date(2018, 2, 14)
+        feature_usage_start    = dt.date(2018, 2, 15)
+        feature_usage_end      = dt.date(2018, 2, 28)
+
+        customer = CustomerFactory.create(consolidated_billing=False,
+                                          sales_tax_percent=Decimal('0.00'))
+        currency = 'USD'
+
+        seat_price = Decimal('0.0')
+        seat_feature = MeteredFeatureFactory(
+            name="Charcoal Users",
+            unit="Seats",
+            included_units=Decimal('0.00'),
+            price_per_unit=seat_price)
+
+        mf_price = Decimal('2.5')
+        metered_feature = MeteredFeatureFactory(name="Charcoal Base Units",
+                                                unit="Barrels (per seat)",
+                                                # linked_feature=seat_feature,
+                                                # included_units_calculation="multiply",
+                                                included_units=Decimal('20.00'),
+                                                price_per_unit=mf_price,)
+
+        plan = PlanFactory.create(interval='month',
+                                  interval_count=1,
+                                  generate_after=120,
+                                  enabled=True,
+                                  amount=Decimal('200.00'),
+                                  currency=currency,
+                                  metered_features=[seat_feature, metered_feature])
+
+        # Create the prorated subscription
+        subscription = SubscriptionFactory.create(plan=plan,
+                                                  start_date=start_date,
+                                                  customer=customer)
+        subscription.activate()
+        subscription.save()
+
+        call_command('generate_docs',
+                     date=prev_billing_date,
+                     stdout=self.output)
+
+        assert Proforma.objects.all().count() == 1
+        assert Invoice.objects.all().count() == 0
+
+        proforma = Proforma.objects.all()[0]
+        assert proforma.total == Decimal(14 / 28.0) * plan.amount
+        assert all([entry.prorated
+                    for entry in proforma.proforma_entries.all()])
+
+        # Add a seat
+        MeteredFeatureUnitsLogFactory.create(subscription=subscription,
+                                             metered_feature=seat_feature,
+                                             start_date=seat_feature_usage_set,
+                                             end_date=seat_feature_usage_set,
+                                             consumed_units=Decimal('1.00'))
+
+        # Track some usage
+        MeteredFeatureUnitsLogFactory.create(subscription=subscription,
+                                             metered_feature=metered_feature,
+                                             start_date=feature_usage_start,
+                                             end_date=feature_usage_end,
+                                             consumed_units=Decimal('20.00'))
+
+        call_command('generate_docs',
+                     date=curr_billing_date,
+                     stdout=self.output)
+
+        assert Proforma.objects.all().count() == 2
+        assert Invoice.objects.all().count() == 0
+
+        proforma = Proforma.objects.all()[1]
+        # assert proforma.proforma_entries.all().count() == 3
+        # assert proforma.total == plan.amount + mf_price * 2
+        assert proforma.total == Decimal('205.00')
+
+        # assert proforma.proforma_entries.all()[0].prorated is True
+        # assert proforma.proforma_entries.all()[1].prorated is False
