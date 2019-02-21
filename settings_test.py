@@ -14,6 +14,11 @@ LOGGING = {
         },
     },
     'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'propagate': True,
+            'level': 'WARNING',
+        },
         'django.db.backends.schema': {
             'handlers': ['file'],
             'propagate': True,
