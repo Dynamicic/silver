@@ -30,6 +30,7 @@ from silver.models import (Proforma,
                            DocumentEntry,
                            Invoice,
                            PaymentMethod,
+                           Provider,
                            BillingDocumentBase,
                            Transaction,
                            MeteredFeatureUnitsLog,
@@ -47,6 +48,7 @@ from silver.tests.factories import (CustomerFactory,
                                     PaymentMethodFactory,
                                     PlanFactory,
                                     ProformaFactory,
+                                    ProductCodeFactory,
                                     ProviderFactory,
                                     SubscriptionFactory,
                                     TransactionFactory)
@@ -54,6 +56,15 @@ from silver.tests.factories import (CustomerFactory,
 
 import logging
 logging.basicConfig(level=logging.WARNING)
+
+def print_entries(doc):
+        print("--")
+        for entr in doc.invoice_entries.all():
+            print("entry: ", entr)
+        print("--")
+        print(doc.total)
+        print("--")
+        print("--")
 
 @override_settings(PAYMENT_PROCESSORS=PAYMENT_PROCESSORS)
 class TestMeteredFeatures(TestCase):
@@ -251,8 +262,6 @@ class TestMeteredFeatures(TestCase):
 
         proforma = Proforma.objects.all()[0]
         assert proforma.total == Decimal(14 / 28.0) * plan.amount
-        # assert all([entry.prorated
-        #             for entry in proforma.proforma_entries.all()])
 
         # Add a seat
         mfl = MeteredFeatureUnitsLogFactory.create(subscription=subscription,
@@ -276,28 +285,22 @@ class TestMeteredFeatures(TestCase):
 
         assert Proforma.objects.all().count() == 1
         assert Invoice.objects.all().count() == 0
-
-        # proforma = Proforma.objects.all()[1]
-        # assert proforma.proforma_entries.all().count() == 3
-        # assert proforma.total == plan.amount + mf_price * 2
         assert proforma.total == Decimal('0.00')
 
-        # assert proforma.proforma_entries.all()[0].prorated is True
-        # assert proforma.proforma_entries.all()[1].prorated is False
-
     @pytest.mark.django_db
-    @pytest.mark.skip
-    def test_subscription_invoice(self):
-        """ Test that seats properly multiply in invoice flow
+    def test_metered_feature_usage_under_included_units(self):
+        """ Test that usage under and above a certain amount tracks with
+        assumptions.
         """
         # Set up the timescale.
         start_date        = dt.date(2018, 1, 1)
         prev_billing_date = generate_docs_date('2018-01-01')
         curr_billing_date = generate_docs_date('2018-01-31')
+        next_billing_date = generate_docs_date('2018-02-01')
 
-        seat_feature_usage_set = dt.date(2018, 1, 3)
-        feature_usage_start    = dt.date(2018, 1, 15)
-        feature_usage_end      = dt.date(2018, 1, 16)
+        seat_feature_usage_set = dt.date(2018, 1, 1)
+        feature_usage_start    = dt.date(2018, 1, 2)
+        feature_usage_end      = dt.date(2018, 1, 30)
 
         provider = ProviderFactory.create(flow=Provider.FLOWS.INVOICE)
 
@@ -305,34 +308,119 @@ class TestMeteredFeatures(TestCase):
                                           sales_tax_percent=Decimal('0.00'))
         currency = 'USD'
 
-        seat_price = Decimal('1.0')
         seat_feature = MeteredFeatureFactory(
             name="Charcoal Users",
             unit="Seats",
             included_units=Decimal('1.00'),
-            price_per_unit=seat_price)
+            product_code=ProductCodeFactory(value="charc-seats"),
+            price_per_unit=Decimal('0.0'))
         seat_feature.save()
 
-        mf_price = Decimal('5.00')
         metered_feature = MeteredFeatureFactory(name="Charcoal Base Units",
                                                 unit="Barrels (per seat)",
-                                                # linked_feature=seat_feature,
-                                                # included_units_calculation="multiply",
-                                                included_units=Decimal('1.00'),
+                                                included_units=Decimal('0.00'),
                                                 included_units_during_trial=Decimal('0.00'),
-                                                price_per_unit=mf_price,)
-        print(metered_feature)
+                                                product_code=ProductCodeFactory(value="charc-base"),
+                                                price_per_unit= Decimal('5.00'),)
         metered_feature.save()
 
         plan = PlanFactory.create(interval=Plan.INTERVALS.MONTH,
                                   interval_count=1,
-                                  generate_after=1,
+                                  generate_after=0,
                                   enabled=True,
                                   provider=provider,
+                                  product_code=ProductCodeFactory(value="monthly-deliv-plan"),
                                   amount=Decimal('10.00'),
-                                  prebill_plan=True,
+                                  prebill_plan=False,
                                   currency=currency,
-                                  trial_period_days=0,
+                                  trial_period_days=None,
+                                  cycle_billing_duration=dt.timedelta(days=1),
+                                  metered_features=[metered_feature])
+        plan.save()
+
+        # Create the prorated subscription
+        subscription = SubscriptionFactory.create(plan=plan,
+                                                  start_date=start_date,
+                                                  customer=customer)
+        subscription.activate()
+        subscription.save()
+
+        call_command('generate_docs',
+                     date=feature_usage_start,
+                     stdout=self.output)
+
+        assert Invoice.objects.all().count() == 0
+
+        # Track some usage
+        mf = MeteredFeatureUnitsLogFactory.create(subscription=subscription,
+                                             metered_feature=metered_feature,
+                                             start_date=feature_usage_start,
+                                             end_date=feature_usage_end,
+                                             consumed_units=Decimal('20.00'))
+        mf.save()
+
+        call_command('generate_docs',
+                     date=feature_usage_end,
+                     stdout=self.output)
+
+        call_command('generate_docs',
+                     date=next_billing_date,
+                     stdout=self.output)
+
+        assert Invoice.objects.all().count() == 1
+        invoice = Invoice.objects.all().first()
+
+        assert invoice.total == Decimal(110.0)
+
+    @pytest.mark.django_db
+    def test_linked_features_no_linked_usage(self):
+        """ Test that usage under and above a certain amount tracks with
+        assumptions.
+        """
+        # Set up the timescale.
+        start_date        = dt.date(2018, 1, 1)
+        prev_billing_date = generate_docs_date('2018-01-01')
+        curr_billing_date = generate_docs_date('2018-01-31')
+        next_billing_date = generate_docs_date('2018-02-01')
+
+        seat_feature_usage_set = dt.date(2018, 1, 1)
+        feature_usage_start    = dt.date(2018, 1, 2)
+        feature_usage_end      = dt.date(2018, 1, 30)
+
+        provider = ProviderFactory.create(flow=Provider.FLOWS.INVOICE)
+
+        customer = CustomerFactory.create(consolidated_billing=False,
+                                          sales_tax_percent=Decimal('0.00'))
+        currency = 'USD'
+
+        seat_feature = MeteredFeatureFactory(
+            name="Charcoal Users",
+            unit="Seats",
+            included_units=Decimal('1.00'),
+            product_code=ProductCodeFactory(value="charc-seats"),
+            price_per_unit=Decimal('0.0'))
+        seat_feature.save()
+
+        metered_feature = MeteredFeatureFactory(name="Charcoal Base Units",
+                                                unit="Barrels (per seat)",
+                                                linked_feature=seat_feature,
+                                                included_units_calculation="multiply",
+                                                included_units=Decimal('20.00'),
+                                                included_units_during_trial=Decimal('0.00'),
+                                                product_code=ProductCodeFactory(value="charc-base"),
+                                                price_per_unit= Decimal('5.00'),)
+        metered_feature.save()
+
+        plan = PlanFactory.create(interval=Plan.INTERVALS.MONTH,
+                                  interval_count=1,
+                                  generate_after=0,
+                                  enabled=True,
+                                  provider=provider,
+                                  product_code=ProductCodeFactory(value="monthly-deliv-plan"),
+                                  amount=Decimal('10.00'),
+                                  prebill_plan=False,
+                                  currency=currency,
+                                  trial_period_days=None,
                                   cycle_billing_duration=dt.timedelta(days=1),
                                   metered_features=[seat_feature, metered_feature])
         plan.save()
@@ -345,44 +433,225 @@ class TestMeteredFeatures(TestCase):
         subscription.save()
 
         call_command('generate_docs',
-                     date=curr_billing_date,
+                     date=feature_usage_start,
                      stdout=self.output)
 
-        assert Invoice.objects.all().count() == 1
-        invoice = Invoice.objects.all().first()
-        print(invoice.total)
-
-        # assert invoice.total == Decimal(0)
-        # assert all([entry.prorated
-        #             for entry in proforma.proforma_entries.all()])
-
-        # Add a seat
-        # MeteredFeatureUnitsLogFactory.create(subscription=subscription,
-        #                                      metered_feature=seat_feature,
-        #                                      start_date=seat_feature_usage_set,
-        #                                      end_date=seat_feature_usage_set,
-        #                                      consumed_units=Decimal('1.00'))
+        assert Invoice.objects.all().count() == 0
 
         # Track some usage
         mf = MeteredFeatureUnitsLogFactory.create(subscription=subscription,
                                              metered_feature=metered_feature,
                                              start_date=feature_usage_start,
-                                             end_date=feature_usage_start,
-                                             consumed_units=Decimal('120.00'))
-        print(mf)
+                                             end_date=feature_usage_end,
+                                             consumed_units=Decimal('20.00'))
         mf.save()
 
         call_command('generate_docs',
-                     date=curr_billing_date,
+                     date=feature_usage_end,
+                     stdout=self.output)
+
+        call_command('generate_docs',
+                     date=next_billing_date,
                      stdout=self.output)
 
         assert Invoice.objects.all().count() == 1
         invoice = Invoice.objects.all().first()
 
-        # proforma = Proforma.objects.all()[1]
-        print(invoice.invoice_entries.all())
-        print(invoice.total)
-        assert invoice.total == Decimal(1.8)
+        # There should be no metered feature charges for this plan, with
+        # an unlogged metered feature value
+        assert invoice.total == Decimal(10.0)
 
-        # assert proforma.proforma_entries.all()[0].prorated is True
-        # assert proforma.proforma_entries.all()[1].prorated is False
+    @pytest.mark.django_db
+    def test_linked_features_with_linked_usage(self):
+        """ Test that usage under and above a certain amount tracks with
+        assumptions.
+        """
+        # Set up the timescale.
+        start_date        = dt.date(2018, 1, 1)
+        prev_billing_date = generate_docs_date('2018-01-01')
+        curr_billing_date = generate_docs_date('2018-01-31')
+        next_billing_date = generate_docs_date('2018-02-01')
+
+        seat_feature_usage_set = dt.date(2018, 1, 1)
+        feature_usage_start    = dt.date(2018, 1, 2)
+        feature_usage_end      = dt.date(2018, 1, 30)
+
+        provider = ProviderFactory.create(flow=Provider.FLOWS.INVOICE)
+
+        customer = CustomerFactory.create(consolidated_billing=False,
+                                          sales_tax_percent=Decimal('0.00'))
+        currency = 'USD'
+
+        seat_feature = MeteredFeatureFactory(
+            name="Charcoal Users",
+            unit="Seats",
+            included_units=Decimal('1.00'),
+            product_code=ProductCodeFactory(value="charc-seats"),
+            price_per_unit=Decimal('0.0'))
+        seat_feature.save()
+
+        metered_feature = MeteredFeatureFactory(name="Charcoal Base Units",
+                                                unit="Barrels (per seat)",
+                                                linked_feature=seat_feature,
+                                                included_units_calculation="multiply",
+                                                included_units=Decimal('20.00'),
+                                                included_units_during_trial=Decimal('0.00'),
+                                                product_code=ProductCodeFactory(value="charc-base"),
+                                                price_per_unit= Decimal('5.00'),)
+        metered_feature.save()
+
+        plan = PlanFactory.create(interval=Plan.INTERVALS.MONTH,
+                                  interval_count=1,
+                                  generate_after=0,
+                                  enabled=True,
+                                  provider=provider,
+                                  product_code=ProductCodeFactory(value="monthly-deliv-plan"),
+                                  amount=Decimal('10.00'),
+                                  prebill_plan=False,
+                                  currency=currency,
+                                  trial_period_days=None,
+                                  cycle_billing_duration=dt.timedelta(days=1),
+                                  metered_features=[seat_feature, metered_feature])
+        plan.save()
+
+        # Create the prorated subscription
+        subscription = SubscriptionFactory.create(plan=plan,
+                                                  start_date=start_date,
+                                                  customer=customer)
+        subscription.activate()
+        subscription.save()
+
+        call_command('generate_docs',
+                     date=feature_usage_start,
+                     stdout=self.output)
+
+        assert Invoice.objects.all().count() == 0
+
+        # Add a seat
+        MeteredFeatureUnitsLogFactory.create(subscription=subscription,
+                                             metered_feature=seat_feature,
+                                             start_date=seat_feature_usage_set,
+                                             end_date=seat_feature_usage_set,
+                                             consumed_units=Decimal('1.00'))
+
+        # Track some usage
+        mf = MeteredFeatureUnitsLogFactory.create(subscription=subscription,
+                                             metered_feature=metered_feature,
+                                             start_date=feature_usage_start,
+                                             end_date=feature_usage_end,
+                                             consumed_units=Decimal('20.00'))
+        mf.save()
+
+        call_command('generate_docs',
+                     date=feature_usage_end,
+                     stdout=self.output)
+
+        call_command('generate_docs',
+                     date=next_billing_date,
+                     stdout=self.output)
+
+        assert Invoice.objects.all().count() == 1
+        invoice = Invoice.objects.all().first()
+
+        # Including 20 units per seat, and one seat, which means 20
+        # units are included.
+        print_entries(invoice)
+        assert invoice.total == Decimal(10.0)
+
+    @pytest.mark.django_db
+    def test_linked_features_with_linked_usage(self):
+        """ Test that usage under and above a certain amount tracks with
+        assumptions.
+        """
+        # Set up the timescale.
+        start_date        = dt.date(2018, 1, 1)
+        prev_billing_date = generate_docs_date('2018-01-01')
+        curr_billing_date = generate_docs_date('2018-01-31')
+        next_billing_date = generate_docs_date('2018-02-01')
+
+        seat_feature_usage_set = dt.date(2018, 1, 1)
+        feature_usage_start    = dt.date(2018, 1, 2)
+        feature_usage_end      = dt.date(2018, 1, 30)
+
+        provider = ProviderFactory.create(flow=Provider.FLOWS.INVOICE)
+
+        customer = CustomerFactory.create(consolidated_billing=False,
+                                          sales_tax_percent=Decimal('0.00'))
+        currency = 'USD'
+
+        seat_feature = MeteredFeatureFactory(
+            name="Charcoal Users",
+            unit="Seats",
+            included_units=Decimal('1.00'),
+            product_code=ProductCodeFactory(value="charc-seats"),
+            price_per_unit=Decimal('0.0'))
+        seat_feature.save()
+
+        metered_feature = MeteredFeatureFactory(name="Charcoal Base Units",
+                                                unit="Barrels (per seat)",
+                                                linked_feature=seat_feature,
+                                                included_units_calculation="multiply",
+                                                included_units=Decimal('20.00'),
+                                                included_units_during_trial=Decimal('0.00'),
+                                                product_code=ProductCodeFactory(value="charc-base"),
+                                                price_per_unit= Decimal('5.00'),)
+        metered_feature.save()
+
+        plan = PlanFactory.create(interval=Plan.INTERVALS.MONTH,
+                                  interval_count=1,
+                                  generate_after=0,
+                                  enabled=True,
+                                  provider=provider,
+                                  product_code=ProductCodeFactory(value="monthly-deliv-plan"),
+                                  amount=Decimal('10.00'),
+                                  prebill_plan=False,
+                                  currency=currency,
+                                  trial_period_days=None,
+                                  cycle_billing_duration=dt.timedelta(days=1),
+                                  metered_features=[seat_feature, metered_feature])
+        plan.save()
+
+        # Create the prorated subscription
+        subscription = SubscriptionFactory.create(plan=plan,
+                                                  start_date=start_date,
+                                                  customer=customer)
+        subscription.activate()
+        subscription.save()
+
+        call_command('generate_docs',
+                     date=feature_usage_start,
+                     stdout=self.output)
+
+        assert Invoice.objects.all().count() == 0
+
+        # Add a seat
+        MeteredFeatureUnitsLogFactory.create(subscription=subscription,
+                                             metered_feature=seat_feature,
+                                             start_date=seat_feature_usage_set,
+                                             end_date=seat_feature_usage_set,
+                                             consumed_units=Decimal('2.00'))
+
+        # Track some usage
+        mf = MeteredFeatureUnitsLogFactory.create(subscription=subscription,
+                                             metered_feature=metered_feature,
+                                             start_date=feature_usage_start,
+                                             end_date=feature_usage_end,
+                                             consumed_units=Decimal('40.00'))
+        mf.save()
+
+        call_command('generate_docs',
+                     date=feature_usage_end,
+                     stdout=self.output)
+
+        call_command('generate_docs',
+                     date=next_billing_date,
+                     stdout=self.output)
+
+        assert Invoice.objects.all().count() == 1
+        invoice = Invoice.objects.all().first()
+
+        # Including 20 units per seat, and two seats, which means 40
+        # units are included.
+        # print_entries(invoice)
+        assert invoice.total == Decimal(10.0)
+

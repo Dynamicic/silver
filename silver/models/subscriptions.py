@@ -186,7 +186,7 @@ class Subscription(models.Model):
                                  end_date):
         import operator
 
-        if metered_feature.linked_feature:
+        if metered_feature.linked_feature is not None:
 
             # Get the latest consumed total as of now.
             consumed_link = self._get_consumed_units(
@@ -194,6 +194,10 @@ class Subscription(models.Model):
                 proration_percent,
                 start_date,
                 end_date)
+
+            # If nothing is "consumed" (= set), then we fall back to the original.
+            if consumed_link == 0:
+                return metered_feature.included_units
 
             # keeping it to simple math until we find we need a formula
             # parser.
@@ -937,6 +941,7 @@ class Subscription(models.Model):
         log = [qs_item.consumed_units for qs_item in qs]
         total_consumed_units = reduce(lambda x, y: x + y, log, 0)
 
+        # LinkedFeaturesFeature
         if total_consumed_units > included_units:
             return total_consumed_units - included_units
         return 0
