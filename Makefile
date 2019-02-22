@@ -19,6 +19,7 @@ testmod:
 	    pytest -vv \
 	    --capture=sys \
 		--pyargs \
+		silver.tests.api.test_metered_feature \
 		silver.tests.unit.test_metered_features
 
 # silver.tests.integration.test_transactions_overpayments \

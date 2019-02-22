@@ -49,11 +49,18 @@ class PaymentMethodTransactionsUrl(serializers.HyperlinkedIdentityField):
 
 class MeteredFeatureSerializer(serializers.ModelSerializer):
     product_code = ProductCodeRelatedField()
+    included_units_calculation = serializers.CharField(required=False)
+    linked_feature = ProductCodeRelatedField(required=False)
 
     class Meta:
         model = MeteredFeature
         fields = ('name', 'unit', 'price_per_unit', 'included_units',
-                  'product_code')
+                  'product_code', 'included_units_calculation', 'linked_feature')
+
+        extra_kwargs = {
+            'included_units_calculation': {'required': False},
+            'linked_feature': {'required': False},
+        }
 
     def create(self, validated_data):
         product_code = validated_data.pop('product_code')
@@ -64,6 +71,23 @@ class MeteredFeatureSerializer(serializers.ModelSerializer):
         metered_feature = MeteredFeature.objects.create(**validated_data)
 
         return metered_feature
+
+    def get_fields(self):
+        from collections import OrderedDict
+
+        fields = super(MeteredFeatureSerializer, self).get_fields()
+
+        EMPTY_VALUES = ('', None, [], ())
+        EXCLUDABLE = self.Meta.extra_kwargs.keys()
+        bbq = OrderedDict(
+            ((name, field) for name, field in fields.items()
+                if getattr(self._declared_fields, name, None) not in EMPTY_VALUES
+               )
+        )
+        print(self._declared_fields)
+        print(bbq)
+        print(fields)
+        return fields
 
 
 class PDFUrl(serializers.HyperlinkedRelatedField):

@@ -181,3 +181,87 @@ class TestMeteredFeatureEndpoint(APITestCase):
                          {u'detail': u"Method 'PATCH' not allowed."})
 
     """
+
+class TestLinkedMeteredFeatureEndpoint(APITestCase):
+
+    def setUp(self):
+        admin_user = AdminUserFactory.create()
+        self.client.force_authenticate(user=admin_user)
+        ProductCodeFactory.reset_sequence(1)
+        self.product_code = ProductCodeFactory.create()
+        self.user_feature_data = {
+            "name": "Users",
+            "unit": "user",
+            "price_per_unit": '1.0000',
+            "included_units": '0.0000',
+            "product_code": self.product_code.value
+        }
+
+        self.minutes_product_code = ProductCodeFactory.create()
+        self.minutes_data = {
+            "name": "Minutes",
+            "unit": "20 minutes / user",
+            "price_per_unit": '5.0000',
+            "included_units": '20.0000',
+            "product_code": self.minutes_product_code.value,
+            "linked_feature": self.product_code.value,
+            "linked_feature_calculation": "multiply",
+        }
+
+    def test_create_post_metered_feature(self):
+        url = reverse('metered-feature-list')
+        response = self.client.post(url, json.dumps(self.user_feature_data),
+                                    content_type='application/json')
+        assert response.status_code == status.HTTP_201_CREATED
+        expected = self.user_feature_data
+        # expected.update({'url': self._full_url(1)})
+        assert expected == response.data
+
+        response = self.client.post(url, json.dumps(self.minutes_data),
+                                    content_type='application/json')
+        assert response.status_code == status.HTTP_201_CREATED
+        expected = self.minutes_data
+        # expected.update({'url': self._full_url(1)})
+        assert expected == response.data
+
+    # def test_create_post_metered_feature_with_linked_field(self):
+    #     url = reverse('metered-feature-list')
+
+    #     required_fields = ['name', 'price_per_unit', 'included_units']
+    #     for field in required_fields:
+    #         temp_data = self.user_feature_data.copy()
+    #         try:
+    #             temp_data.pop(field)
+    #         except KeyError:
+    #             pytest.xfail('Metered Feature required field %s not provided in'
+    #                          'the complete test data.' % field)
+
+    #         response = self.client.post(url, json.dumps(temp_data),
+    #                                     content_type='application/json')
+
+    #         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    #         assert (response.data == {field: ['This field may not be blank.']} or
+    #                 response.data == {field: ['This field is required.']})
+
+    # def test_get_metered_feature_list(self):
+    #     MeteredFeatureFactory.create_batch(40)
+    #     url = reverse('metered-feature-list')
+
+    #     response = self.client.get(url)
+
+    #     full_url = build_absolute_test_url(url)
+
+    #     assert response.status_code == status.HTTP_200_OK
+    #     assert response._headers['link'] == \
+    #         ('Link', '<' + full_url + '?page=2>; rel="next", ' +
+    #          '<' + full_url + '?page=1>; rel="first", ' +
+    #          '<' + full_url + '?page=2> rel="last"')
+
+    #     response = self.client.get(url + '?page=2')
+
+    #     assert response.status_code == status.HTTP_200_OK
+    #     assert response._headers['link'] == \
+    #         ('Link', '<' + full_url + '>; rel="prev", ' +
+    #          '<' + full_url + '?page=1>; rel="first", ' +
+    #          '<' + full_url + '?page=2> rel="last"')
+

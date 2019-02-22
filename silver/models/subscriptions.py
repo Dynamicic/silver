@@ -929,6 +929,10 @@ class Subscription(models.Model):
 
     def _get_consumed_units(self, metered_feature, proration_percent,
                             start_date, end_date):
+        """ included units = included * prorated percent
+            consumed = reduce([ consumed_units ] where log.start_date >= start_date
+                                                 and   log.end_date <= end_date 
+        """
         incl = self._get_included_units_calc(metered_feature,
                                              proration_percent,
                                              start_date, end_date)
