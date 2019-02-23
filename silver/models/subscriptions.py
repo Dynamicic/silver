@@ -933,9 +933,14 @@ class Subscription(models.Model):
             consumed = reduce([ consumed_units ] where log.start_date >= start_date
                                                  and   log.end_date <= end_date 
         """
+        # If the metered feature is marked as prebilled, then all the
+        # included units should be listed as consumed regardless of
+        # logged usage.
+
         incl = self._get_included_units_calc(metered_feature,
                                              proration_percent,
                                              start_date, end_date)
+
 
         included_units = (proration_percent * incl)
 
@@ -946,8 +951,15 @@ class Subscription(models.Model):
         total_consumed_units = reduce(lambda x, y: x + y, log, 0)
 
         # LinkedFeaturesFeature
-        if total_consumed_units > included_units:
-            return total_consumed_units - included_units
+        # PrebilledMeteredFeature
+        if metered_feature.prebill_included_units:
+            if total_consumed_units > incl:
+                return total_consumed_units
+            else:
+                return incl
+        else:
+            if total_consumed_units > included_units:
+                return total_consumed_units - included_units
         return 0
 
     def _add_mfs(self, start_date, end_date, invoice=None, proforma=None):

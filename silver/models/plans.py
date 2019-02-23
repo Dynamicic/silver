@@ -150,13 +150,18 @@ class MeteredFeature(models.Model):
         max_digits=19, decimal_places=4, validators=[MinValueValidator(0.0)],
         help_text='The price per unit.',
     )
-    # TODO: LinkedFeaturesFeature
-    # This can potentially be calculated if there is a model
-    # relationship with another MeteredFeature.
+
+    # LinkedFeaturesFeature
     included_units = models.DecimalField(
         max_digits=19, decimal_places=4, validators=[MinValueValidator(0.0)],
         help_text='The number of included units per plan interval.'
     )
+    # PrebilledMeteredFeature
+    prebill_included_units = models.NullBooleanField(
+        help_text="If this is set to True, then the total of included units will be "
+                  "pre-billed at the beginning of the cycle."
+    )
+
     included_units_during_trial = models.DecimalField(
         max_digits=19, decimal_places=4, validators=[MinValueValidator(0.0)],
         blank=True, null=True,

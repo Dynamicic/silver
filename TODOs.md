@@ -108,3 +108,4 @@ To understand better how the number of consumed units are determined, see:
 The summary is that this feature relies on existing code that determines
 included units via log items during the billing date period.
 
+

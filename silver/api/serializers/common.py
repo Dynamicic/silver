@@ -23,6 +23,8 @@ from rest_framework.relations import HyperlinkedRelatedField
 from silver.api.serializers.product_codes_serializer import ProductCodeRelatedField
 from silver.models import MeteredFeature
 
+from django.core.exceptions import ObjectDoesNotExist
+
 
 class CustomerUrl(HyperlinkedRelatedField):
     def get_url(self, obj, view_name, request, format):
@@ -46,11 +48,36 @@ class PaymentMethodTransactionsUrl(serializers.HyperlinkedIdentityField):
         return self.reverse(view_name, kwargs=kwargs,
                             request=request, format=format)
 
+class MeteredFeatureRelatedField(serializers.StringRelatedField):
+    """ A serializer that connects a product code to its MeteredFeature
+    representation.  """
+
+    class Meta:
+        queryset = MeteredFeature.objects.all()
+
+    def to_internal_value(self, data):
+        q = MeteredFeature.objects.get(product_code__value=data)
+        try:
+            return MeteredFeature.objects.get(product_code__value=data)
+        except (ObjectDoesNotExist, TypeError, ValueError):
+            self.fail('invalid')
+
+    def to_representation(self, instance):
+        """ Remove some additional fields if no value is set.
+        """
+
+        ret = super().to_representation(instance)
+        return ret
 
 class MeteredFeatureSerializer(serializers.ModelSerializer):
     product_code = ProductCodeRelatedField()
-    included_units_calculation = serializers.CharField(required=False)
-    linked_feature = ProductCodeRelatedField(required=False)
+
+    linked_feature = MeteredFeatureRelatedField(required=False, allow_null=True)
+    # linked_feature = serializers.PrimaryKeyRelatedField(required=False,
+    #                                                     allow_null=True,
+    #                                                     queryset=MeteredFeature.objects.all())
+    included_units_calculation = serializers.CharField(required=False,
+                                                       allow_null=True)
 
     class Meta:
         model = MeteredFeature
@@ -72,22 +99,20 @@ class MeteredFeatureSerializer(serializers.ModelSerializer):
 
         return metered_feature
 
-    def get_fields(self):
+    def to_representation(self, instance):
+        """ Remove some additional fields if no value is set.
+        """
         from collections import OrderedDict
+        EMPTY_VALUES = ['', None, [], ()]
+        EXCLUDABLE = self.Meta.extra_kwargs.items()
 
-        fields = super(MeteredFeatureSerializer, self).get_fields()
+        ret = super().to_representation(instance)
 
-        EMPTY_VALUES = ('', None, [], ())
-        EXCLUDABLE = self.Meta.extra_kwargs.keys()
-        bbq = OrderedDict(
-            ((name, field) for name, field in fields.items()
-                if getattr(self._declared_fields, name, None) not in EMPTY_VALUES
-               )
+        return OrderedDict(
+            ( (name, value) for name, value in ret.items()
+               if value not in EMPTY_VALUES and name not in EXCLUDABLE
+            )
         )
-        print(self._declared_fields)
-        print(bbq)
-        print(fields)
-        return fields
 
 
 class PDFUrl(serializers.HyperlinkedRelatedField):
