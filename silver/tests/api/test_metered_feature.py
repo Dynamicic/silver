@@ -228,10 +228,7 @@ class TestLinkedMeteredFeatureEndpoint(APITestCase):
 
         response = self.client.post(url, json.dumps(minutes_with_link),
                                     content_type='application/json')
-        try:
-            response.data.pop('pk')
-        except:
-            pass
+
         assert response.status_code == status.HTTP_201_CREATED
         expected = self.minutes_data
 
@@ -260,11 +257,11 @@ class TestLinkedMeteredFeatureEndpoint(APITestCase):
     @pytest.mark.django_db
     def test_create_prebilled_feature(self):
         url = reverse('metered-feature-list')
+
         response = self.client.post(url, json.dumps(self.prebill_minutes_data),
                                     content_type='application/json')
+
         assert response.status_code == status.HTTP_201_CREATED
+
         expected = self.prebill_minutes_data
-
         assert expected == response.data
-
-

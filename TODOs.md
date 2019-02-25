@@ -108,4 +108,25 @@ To understand better how the number of consumed units are determined, see:
 The summary is that this feature relies on existing code that determines
 included units via log items during the billing date period.
 
+## Pre-billed Metered Features (PrebilledMeteredFeature)
 
+The default functionality of Metered Features is to allow for an amount of
+"included" units of the metered feature, which are free and not billed.
+
+For plans that need to include the cost of a set of included features in the
+total, the feature may be marked as pre-billed. The total of the included units
+will be calculated out.
+
+    MeteredFeature(
+        # This
+        prebill_included_units=True,
+        
+        name="Charcoal Base Units",
+        unit="Barrels (per seat)",
+        included_units=Decimal('40.00'),
+        price_per_unit=Decimal('1.00'),
+    )
+
+To track overage, it is best for now to use a separate metered feature (with
+zero included units), which will then support separate unit cost rates for
+overage.
