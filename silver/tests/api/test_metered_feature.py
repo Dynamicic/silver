@@ -209,19 +209,27 @@ class TestLinkedMeteredFeatureEndpoint(APITestCase):
         assert response.status_code == status.HTTP_201_CREATED
         expected = self.user_feature_data
 
+        try:
+            response.data.pop('pk')
+        except:
+            pass
+
         assert expected == response.data
 
         minutes_with_link = self.minutes_data
 
         response = self.client.post(url, json.dumps(minutes_with_link),
                                     content_type='application/json')
+        try:
+            response.data.pop('pk')
+        except:
+            pass
         assert response.status_code == status.HTTP_201_CREATED
         expected = self.minutes_data
 
         assert expected == response.data
 
     @pytest.mark.django_db
-    @pytest.mark.skip
     def test_create_post_metered_feature_with_link(self):
         """ Create the features as above, add a link.
         """
@@ -232,14 +240,26 @@ class TestLinkedMeteredFeatureEndpoint(APITestCase):
                                     json.dumps(self.user_feature_data),
                                     content_type='application/json')
 
+        print(response)
+        # print(response.data.get('pk'))
         l = self.link
+        # l                               = self.minutes_data.copy()
+        # l['linked_feature']             = response.data.get('pk')
+        # l['linked_feature_calculation'] = "multiply"
         response = self.client.post(url, json.dumps(l),
                                     content_type='application/json')
 
+        print("in")
         print(self.link)
+
+        print("out")
         print(response.data)
         assert response.status_code == status.HTTP_201_CREATED
         expected = self.link
 
-        assert response.data['linked_feature'] == self.product_code.value
-        assert 1 == 0
+        assert response.data.get('linked_feature') == self.user_product_code.value
+
+
+    # TODO: prebill_included_units API thing.
+    # 
+

@@ -23,7 +23,41 @@ from rest_framework.relations import HyperlinkedRelatedField
 from silver.api.serializers.product_codes_serializer import ProductCodeRelatedField
 from silver.models import MeteredFeature
 
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+
+class RelatedPropertyField(serializers.RelatedField):
+    """ A serializer that uses a property on a related object to stand
+    in for the object relationship. When you kind of need a
+    SlugRelatedField, but with depth. Assumes a unique relationship,
+    otherwise errors will be raised.
+
+    :param related_lookup (str): a field accessor value that will be
+        used to query and return values, e.g. `object__property`
+
+    """
+
+    def __init__(self, related_lookup=None, **kwargs):
+        assert related_lookup is not None, 'The `related_lookup` argument is required.'
+        self.related_lookup = related_lookup
+        super(RelatedPropertyField, self).__init__(**kwargs)
+
+    def to_internal_value(self, data):
+        from django.db.models import Q
+
+        try:
+            return self.queryset.get(Q(**{
+                self.related_lookup: data
+            }))
+        except (MultipleObjectsReturned, ObjectDoesNotExist, TypeError, ValueError):
+            self.fail('invalid')
+
+    def to_representation(self, instance):
+        """ Traverse the related lookup string for the deepest argument.
+        """
+        w = instance
+        for p in self.related_lookup.split('__'):
+            w = getattr(w, p)
+        return w
 
 
 class CustomerUrl(HyperlinkedRelatedField):
@@ -48,34 +82,14 @@ class PaymentMethodTransactionsUrl(serializers.HyperlinkedIdentityField):
         return self.reverse(view_name, kwargs=kwargs,
                             request=request, format=format)
 
-class MeteredFeatureRelatedField(serializers.StringRelatedField):
-    """ A serializer that connects a product code to its MeteredFeature
-    representation.  """
-
-    class Meta:
-        queryset = MeteredFeature.objects.all()
-
-    def to_internal_value(self, data):
-        q = MeteredFeature.objects.get(product_code__value=data)
-        try:
-            return MeteredFeature.objects.get(product_code__value=data)
-        except (ObjectDoesNotExist, TypeError, ValueError):
-            self.fail('invalid')
-
-    def to_representation(self, instance):
-        """ Remove some additional fields if no value is set.
-        """
-
-        ret = super().to_representation(instance)
-        return ret
-
 class MeteredFeatureSerializer(serializers.ModelSerializer):
     product_code = ProductCodeRelatedField()
 
-    linked_feature = MeteredFeatureRelatedField(required=False, allow_null=True)
-    # linked_feature = serializers.PrimaryKeyRelatedField(required=False,
-    #                                                     allow_null=True,
-    #                                                     queryset=MeteredFeature.objects.all())
+    linked_feature = RelatedPropertyField(related_lookup="product_code__value",
+                                          queryset=MeteredFeature.objects.all(),
+                                          required=False,
+                                          allow_null=True)
+
     included_units_calculation = serializers.CharField(required=False,
                                                        allow_null=True)
 
