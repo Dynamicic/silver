@@ -979,7 +979,8 @@ class TestMeteredFeatures(TestCase):
                                                 included_units=Decimal('40.00'),
                                                 prebill_included_units=True,
                                                 included_units_during_trial=Decimal('0.00'),
-                                                product_code=ProductCodeFactory(value="charc-base"),
+                                                product_code=ProductCodeFactory(
+                                                    value="charc-base"),
                                                 price_per_unit=Decimal('1.00'),)
         metered_feature.save()
 
@@ -990,7 +991,8 @@ class TestMeteredFeatures(TestCase):
                                                  included_units=Decimal('0.00'),
                                                  prebill_included_units=True,
                                                  included_units_during_trial=Decimal('0.00'),
-                                                 product_code=ProductCodeFactory(value="charc-overage"),
+                                                 product_code=ProductCodeFactory(
+                                                     value="charc-overage"),
                                                  price_per_unit=Decimal('2.00'),)
         charcoal_overage.save()
 

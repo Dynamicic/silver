@@ -198,9 +198,22 @@ class TestLinkedMeteredFeatureEndpoint(APITestCase):
         self.link['linked_feature_calculation'] = "multiply"
 
 
+        self.prebill_minutes_product_code = ProductCodeFactory.create(
+            value="prebill_minutes_product_code"
+        )
+
+        self.prebill_minutes_data = {
+            "name": "Minutes",
+            "unit": "20 minutes / user",
+            "prebill_included_units": True,
+            "price_per_unit": '5.0000',
+            "included_units": '20.0000',
+            "product_code": self.minutes_product_code.value,
+        }
+
     @pytest.mark.django_db
     def test_create_post_metered_feature(self):
-        """ Test creating the features individually
+        """ Test creating the features individually.
         """
 
         url = reverse('metered-feature-list')
@@ -208,11 +221,6 @@ class TestLinkedMeteredFeatureEndpoint(APITestCase):
                                     content_type='application/json')
         assert response.status_code == status.HTTP_201_CREATED
         expected = self.user_feature_data
-
-        try:
-            response.data.pop('pk')
-        except:
-            pass
 
         assert expected == response.data
 
@@ -240,26 +248,23 @@ class TestLinkedMeteredFeatureEndpoint(APITestCase):
                                     json.dumps(self.user_feature_data),
                                     content_type='application/json')
 
-        print(response)
-        # print(response.data.get('pk'))
         l = self.link
-        # l                               = self.minutes_data.copy()
-        # l['linked_feature']             = response.data.get('pk')
-        # l['linked_feature_calculation'] = "multiply"
         response = self.client.post(url, json.dumps(l),
                                     content_type='application/json')
 
-        print("in")
-        print(self.link)
-
-        print("out")
-        print(response.data)
         assert response.status_code == status.HTTP_201_CREATED
         expected = self.link
 
         assert response.data.get('linked_feature') == self.user_product_code.value
 
+    @pytest.mark.django_db
+    def test_create_prebilled_feature(self):
+        url = reverse('metered-feature-list')
+        response = self.client.post(url, json.dumps(self.prebill_minutes_data),
+                                    content_type='application/json')
+        assert response.status_code == status.HTTP_201_CREATED
+        expected = self.prebill_minutes_data
 
-    # TODO: prebill_included_units API thing.
-    # 
+        assert expected == response.data
+
 

@@ -96,11 +96,13 @@ class MeteredFeatureSerializer(serializers.ModelSerializer):
     class Meta:
         model = MeteredFeature
         fields = ('name', 'unit', 'price_per_unit', 'included_units',
-                  'product_code', 'included_units_calculation', 'linked_feature')
+                  'product_code', 'included_units_calculation', 'linked_feature',
+                 'prebill_included_units',)
 
         extra_kwargs = {
             'included_units_calculation': {'required': False},
             'linked_feature': {'required': False},
+            'prebill_included_units': {'required': False},
         }
 
     def create(self, validated_data):
