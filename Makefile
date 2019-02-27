@@ -12,12 +12,15 @@ full-test: test
 	pip install watchdog
 	touch /tmp/test.sdk.env
 
-testsdk: /tmp/test.sdk.env
+runsdk:
+	cd /code/silver/infra/silversdk/ && \
+		flock -n testing.lock silversdk --list-endpoints
+
+watchsdk: /tmp/test.sdk.env
 	cd /code/silver/infra/silversdk/ && watchmedo shell-command \
 		--patterns="*.py" \
 		--recursive \
-		--ignore-directories \
-		--command="flock -n testing.lock silversdk"
+		--command="make runsdk"
 
 testwatch: /tmp/test.env
 	watchmedo shell-command \

@@ -72,7 +72,7 @@ setup(
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*',
     install_requires=[
         'click',
-        'pyswagger==0.8.38',
+        'bravado==10.3.1',
         'python-dotenv==0.10.1',
         'python-dotenv[cli]',
         # eg: 'aspectlib==1.1.1', 'six>=1.7',

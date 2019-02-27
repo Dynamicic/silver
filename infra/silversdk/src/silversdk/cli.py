@@ -22,10 +22,10 @@ from .client import *
 @click.option('--test-client', 'testclient', default=False, flag_value=True, required=False)
 @click.option('--endpoints', default=False, flag_value=True, required=False)
 def main(testclient, endpoints):
-    _app, _client = create_client()
+    client = SilverClient()
 
     if testclient:
-        test_client(_app, _client)
+        test_client(client)
 
     if endpoints:
-        list_endpoints(_app)
+        list_endpoints(client)
