@@ -58,11 +58,13 @@ INSTALLED_APPS = [
     'reversion_compare',
     'rest_framework',
     'rest_framework.authtoken',
+    'rest_framework_swagger',
     'dal',
     'dal_select2',
     'silver',
     'silver_authorizenet',
     'history',
+    'swagger',
 ]
 
 MIDDLEWARE = [

@@ -5,6 +5,7 @@ server-side processes to test integrations from the client side. Using this
 document, you should be able to get a payment plan processing and issuing
 invoices as well as issue payments to the payment processor, and much more.
 
+* [Swagger](#swagger)
 * [Creating an Auth Token](#creating-an-auth-token)
 * [Authenticating](#authenticating)
 * [Triggering a payment to process](#triggering-a-payment-to-process)
@@ -55,6 +56,16 @@ invoices as well as issue payments to the payment processor, and much more.
 **README.md**
 
  * Webhook config
+
+## Swagger
+
+`Django REST Swagger` is installed, and the UI is accessible at the following URL.
+
+ * http://hostname/swagger/
+
+A separate JSON Schema URL is also available.
+
+ * http://hostname/swagger/schema/
 
 ## Creating an Auth Token
 
