@@ -1,20 +1,17 @@
 from django.shortcuts import render
+from rest_framework import permissions
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
 
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-from rest_framework.schemas import SchemaGenerator
-from rest_framework.views import APIView
-from rest_framework_swagger import renderers
-
-
-class SwaggerSchemaView(APIView):
-    permission_classes = [AllowAny]
-    renderer_classes = [
-        renderers.OpenAPIRenderer
-    ]
-
-    def get(self, request):
-        generator = SchemaGenerator()
-        schema = generator.get_schema(request=request)
-
-        return Response(schema)
+schema_view = get_schema_view(
+   openapi.Info(
+      title="Silver API",
+      default_version='v1',
+      description="Test description",
+      terms_of_service="TODO:",
+      contact=openapi.Contact(email="email@something.com"),
+      license=openapi.License(name="."),
+   ),
+   public=True,
+   permission_classes=(permissions.AllowAny,),
+)

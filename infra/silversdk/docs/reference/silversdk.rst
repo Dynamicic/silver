@@ -7,3 +7,6 @@ silversdk
 
 .. automodule:: silversdk
     :members:
+
+.. automodule:: silversdk.client.SilverSDK
+    :members:

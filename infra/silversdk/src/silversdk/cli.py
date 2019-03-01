@@ -18,6 +18,32 @@ import click
 
 from .client import *
 
+def list_endpoints(silverclient):
+    """ List all the endpoints.
+    """
+
+    sp = ''
+    for namespace in dir(silverclient.client):
+        print('namespace: ' + namespace)
+        for endpoint in dir(getattr(silverclient.client, namespace)):
+            print('    ' + endpoint)
+        print(' ')
+
+def test_client(silverclient):
+    """ Test a request with some default settings.
+    """
+    from itertools import chain
+
+    # a request to create a new pet
+    customers = silverclient.client.customers.customers_list()
+
+    custs = customers.response()
+
+    print(custs.result[0])
+
+    assert len(custs.incoming_response.text) > 1
+    assert len(custs.result) > 1
+
 @click.command()
 @click.option('--test-client', 'testclient', default=False, flag_value=True, required=False)
 @click.option('--endpoints', default=False, flag_value=True, required=False)
