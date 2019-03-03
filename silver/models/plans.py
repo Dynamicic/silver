@@ -39,14 +39,18 @@ class Plan(models.Model):
         DAY = 'day'
         WEEK = 'week'
         MONTH = 'month'
+        MONTHISH = 'monthish'
         YEAR = 'year'
 
     INTERVAL_CHOICES = Choices(
         (INTERVALS.DAY, _('Day')),
         (INTERVALS.WEEK, _('Week')),
         (INTERVALS.MONTH, _('Month')),
+        (INTERVALS.MONTHISH, _('Month-ish')),
         (INTERVALS.YEAR, _('Year'))
     )
+
+    # SetBillingDates
 
     name = models.CharField(
         max_length=200, help_text='Display name of the plan.',

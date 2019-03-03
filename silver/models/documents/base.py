@@ -208,7 +208,10 @@ class BillingDocumentBase(models.Model):
 
     def _issue(self, issue_date=None, due_date=None):
         if issue_date:
-            self.issue_date = datetime.strptime(issue_date, '%Y-%m-%d').date()
+            if type(issue_date) != type(timezone.now().date()):
+                self.issue_date = datetime.strptime(issue_date, '%Y-%m-%d').date()
+            else:
+                self.issue_date = issue_date
         elif not self.issue_date and not issue_date:
             self.issue_date = timezone.now().date()
 

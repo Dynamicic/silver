@@ -141,6 +141,7 @@ class Subscription(models.Model):
     _INTERVALS_CODES = {
         'year': rrule.YEARLY,
         'month': rrule.MONTHLY,
+        'monthish': rrule.MONTHLY,
         'week': rrule.WEEKLY,
         'day': rrule.DAILY
     }
@@ -246,6 +247,7 @@ class Subscription(models.Model):
 
     def _get_aligned_start_date_after_date(self, reference_date, interval_type,
                                            bymonth=None, byweekday=None, bymonthday=None):
+        # SetBillingDates
         return list(
             rrule.rrule(interval_type,
                         count=1,  # align the cycle to the given rules as quickly as possible
@@ -269,6 +271,7 @@ class Subscription(models.Model):
 
         relative_start_date = range_start if aligned_start_date > range_end else aligned_start_date
 
+        # SetBillingDates
         dates = list(
             rrule.rrule(interval_type,
                         dtstart=relative_start_date,
@@ -279,6 +282,10 @@ class Subscription(models.Model):
         return aligned_start_date if not dates else dates[-1].date()
 
     def _cycle_start_date(self, reference_date=None, ignore_trial=None, granulate=None):
+        # SetBillingDates
+        # For monthly plans, bill on the same date of the start of the
+        # plan, unless it's a short month 
+
         ignore_trial_default = False
         granulate_default = False
 
@@ -295,8 +302,22 @@ class Subscription(models.Model):
             'interval_type': self._INTERVALS_CODES[self.plan.interval],
             'interval_count': 1 if granulate else self.plan.interval_count,
         }
+        print("bbq")
+        print(rules)
         if self.plan.interval == self.plan.INTERVALS.MONTH:
             rules['bymonthday'] = 1  # first day of the month
+        elif self.plan.interval == self.plan.INTERVALS.MONTHISH:
+            start_d = self.start_date.day
+            # If the start_d is greater than 28 days, the interval needs
+            # to generate by the last day, otherwise short months will
+            # be excluded from billing.
+            # DOC: https://dateutil.readthedocs.io/en/stable/rrule.html
+            #
+            if start_d > 28:
+                _bymonthday = -1
+            else:
+                _bymonthday = start_d
+            rules['bymonthday'] = start_d  # first day of the month
         elif self.plan.interval == self.plan.INTERVALS.WEEK:
             rules['byweekday'] = 0  # first day of the week (Monday)
         elif self.plan.interval == self.plan.INTERVALS.YEAR:
@@ -327,6 +348,7 @@ class Subscription(models.Model):
                     return self.start_date
 
     def _cycle_end_date(self, reference_date=None, ignore_trial=None, granulate=None):
+        # SetBillingDates
         ignore_trial_default = False
         granulate_default = False
 
@@ -350,6 +372,8 @@ class Subscription(models.Model):
         if self.plan.interval == self.plan.INTERVALS.YEAR:
             relative_delta = {'years': self.plan.interval_count}
         elif self.plan.interval == self.plan.INTERVALS.MONTH:
+            relative_delta = {'months': self.plan.interval_count}
+        elif self.plan.interval == self.plan.INTERVALS.MONTHISH:
             relative_delta = {'months': self.plan.interval_count}
         elif self.plan.interval == self.plan.INTERVALS.WEEK:
             relative_delta = {'weeks': self.plan.interval_count}

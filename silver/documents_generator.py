@@ -147,7 +147,7 @@ class DocumentsGenerator(object):
 
         for provider, document in existing_provider_documents.items():
             if provider.default_document_state == Provider.DEFAULT_DOC_STATE.ISSUED:
-                document.issue()
+                document.issue(issue_date=billing_date)
 
     def _generate_for_user_without_consolidated_billing(self, customer, billing_date,
                                                         force_generate):
@@ -164,7 +164,7 @@ class DocumentsGenerator(object):
             document = self._bill_subscription_into_document(subscription, billing_date)
 
             if provider.default_document_state == Provider.DEFAULT_DOC_STATE.ISSUED:
-                document.issue()
+                document.issue(issue_date=billing_date)
 
     def _generate_for_single_subscription(self, subscription=None, billing_date=None,
                                           force_generate=False):
@@ -183,7 +183,7 @@ class DocumentsGenerator(object):
         document = self._bill_subscription_into_document(subscription, billing_date)
 
         if provider.default_document_state == Provider.DEFAULT_DOC_STATE.ISSUED:
-            document.issue()
+            document.issue(issue_date=billing_date)
 
     def add_subscription_cycles_to_document(self, billing_date, metered_features_billed_up_to,
                                             plan_billed_up_to, subscription,

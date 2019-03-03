@@ -55,17 +55,17 @@ services:
       - redis
 
   db:
-    image: "yobasystems/alpine-mariadb"
+    image: "nimmis/alpine-mariadb"
     restart: always
     volumes:
       - db_data:/var/lib/mysql 
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: silver
-      MYSQL_DATABASE: silver
-      MYSQL_USER: silver
-      MYSQL_PASSWORD: silver
+      MARIADB_ROOT_PASSWORD: silver
+      MARIADB_DATABASE: silver
+      MARIADB_USER: silver
+      MARIADB_PASSWORD: silver
 
   redis:
     image: "redis:3.2-alpine"
