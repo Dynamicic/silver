@@ -69,6 +69,10 @@ def print_entries(doc):
 @override_settings(PAYMENT_PROCESSORS=PAYMENT_PROCESSORS)
 class SubscriptionBillingDates(TestCase):
 
+    # TODO: use the year-long test case to work out some other options
+    # with different start dates. Need to make sure 1/31 can generate a
+    # year with the correct periods despite feb lacking 31. 
+
     def __init__(self, *args, **kwargs):
         super(SubscriptionBillingDates, self).__init__(*args, **kwargs)
         self.output = StringIO()
@@ -518,10 +522,9 @@ class SubscriptionBillingDates(TestCase):
 
             deltawerk = start_date + timedelta(days=31)
 
-            curr_billing_date = dt.date(start_date.year,
-                                        start_date.month + 1,
-                                        deltawerk.day)
+            curr_billing_date = start_date + timedelta(days=31)
 
+            print("  cur. billing date:", curr_billing_date)
             day_delta = start_date + timedelta(days=3)
 
             seat_feature_usage_set = dt.date(start_date.year, start_date.month, day_delta.day)
@@ -571,6 +574,149 @@ class SubscriptionBillingDates(TestCase):
 
             assert invoice.issue_date == curr_billing_date
             assert invoice.total >= Decimal(110.0)
+            invoice_pay_date        =  invoice.issue_date + timedelta(days=1)
+            invoice.pay(paid_date=invoice_pay_date.strftime("%Y-%m-%d"))
+            invoice.save()
+            print("  invoice pay:      ", invoice_pay_date)
+            print(" -- cycle end -- ")
+
+        # hacky debug 
+        # assert 1 == 0
+
+
+
+    @pytest.mark.django_db
+    def test_that_daily_billed_plan_issue_date_carries_for_a_year_end_of_month(self):
+        """ Test a scenario out for a year, starting with a date that
+        does not exist in all months.
+
+        """
+        from dateutil.rrule import rrule, MONTHLY
+        from datetime import datetime, timedelta
+        from calendar import monthrange
+
+        # Billing by the last day of each month, with a start date that
+        # includes all possible months. (Same basic result)
+
+        # Set up the timescale.
+
+        # works
+        # cycle_start_dates       =  dt.date(2018, 1, 28)
+
+        # breaks
+        cycle_start_dates       =  dt.date(2018, 1, 29)
+
+        # breaks
+        # cycle_start_dates       =  dt.date(2018, 1, 30)
+
+        # breaks
+        # cycle_start_dates       =  dt.date(2018, 1, 31)
+
+        # These are each month on the same day.
+        # [datetime.datetime(), ...]
+        intervals = list(rrule(MONTHLY,
+                               count=12,
+                               bymonthday=cycle_start_dates.day,
+                               dtstart=cycle_start_dates))
+
+        provider = self.provider
+        customer = self.customer
+
+        seat_feature = self.seat_feature
+        seat_feature.save()
+
+        metered_feature = self.metered_feature
+        metered_feature.save()
+
+        plan = self.plan(metered_features=[metered_feature],
+                         interval_count=1,
+                         interval=Plan.INTERVALS.MONTHISH,
+                         provider=provider,)
+        plan.save()
+
+        # Create the prorated subscription
+        subscription = SubscriptionFactory.create(plan=plan,
+                                                  start_date=cycle_start_dates,
+                                                  customer=customer)
+        subscription.activate()
+        subscription.save()
+
+        invoice_issued_assumed = 0
+        for cycle_start in intervals:
+
+            print(" -- cycle -- ")
+            start_date              =  cycle_start.date()
+            end_of_start_month      =  dt.date(start_date.year,
+                                               start_date.month,
+                                               monthrange(start_date.year, start_date.month)[1]
+                                               )
+
+            print("  month start:      ", start_date)
+            print("  month end (cal.): ", end_of_start_month)
+
+            no_invoice_issued_here  = start_date + timedelta(days=20)
+            # no_invoice_issued_here  =  dt.date(start_date.year, start_date.month + 1, 3)
+            first_invoice_date      =  start_date + timedelta(days=31)
+
+            print("  no invoice check: ", no_invoice_issued_here)
+            print("  first invoice:    ", first_invoice_date)
+
+            deltawerk = start_date + timedelta(days=31)
+
+            curr_billing_date = start_date + timedelta(days=32)
+
+            print("  cur. billing date:", curr_billing_date)
+            day_delta = start_date + timedelta(days=3)
+
+            seat_feature_usage_set = start_date + timedelta(days=3)
+            feature_usage_start    = start_date + timedelta(days=4)
+            feature_usage_end      = start_date + timedelta(days=4)
+
+            print("  feature usage:    ", feature_usage_start)
+            print("                -   ", seat_feature_usage_set)
+            print("                -   ", feature_usage_end)
+
+            call_command('generate_docs',
+                         date=feature_usage_start,
+                         stdout=self.output)
+
+            # Track some usage
+            mf = MeteredFeatureUnitsLogFactory.create(subscription=subscription,
+                                                 metered_feature=metered_feature,
+                                                 start_date=feature_usage_start,
+                                                 end_date=feature_usage_end,
+                                                 consumed_units=Decimal('20.00'))
+            mf.save()
+
+            # No invoices are generated here because the month hasn't passed
+            call_command('generate_docs',
+                         date=end_of_start_month,
+                         stdout=self.output)
+
+            assert Invoice.objects.all().count() == invoice_issued_assumed
+            # debugging: invoice generated here, which is 2018-01-31,
+            # despite start date being 2018-01-29
+
+
+            # Invoices SHOULD NOT be generated here because the billing
+            # period shouldn't end.
+            call_command('generate_docs',
+                         date=no_invoice_issued_here,
+                         stdout=self.output)
+
+            assert Invoice.objects.all().count() == invoice_issued_assumed
+
+            call_command('generate_docs',
+                         date=curr_billing_date,
+                         stdout=self.output)
+
+            invoice_issued_assumed += 1
+
+            assert Invoice.objects.all().count() == invoice_issued_assumed
+            invoice = Invoice.objects.all().first()
+
+            assert invoice.issue_date == curr_billing_date
+            assert invoice.total >= Decimal(100.0)
             invoice_pay_date        =  invoice.issue_date + timedelta(days=1)
             invoice.pay(paid_date=invoice_pay_date.strftime("%Y-%m-%d"))
             invoice.save()

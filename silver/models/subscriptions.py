@@ -312,10 +312,10 @@ class Subscription(models.Model):
             # DOC: https://dateutil.readthedocs.io/en/stable/rrule.html
             #
             if start_d > 28:
-                _bymonthday = -1
+                _bymonthday = -3 - (start_d - 28)
             else:
                 _bymonthday = start_d
-            rules['bymonthday'] = start_d  # first day of the month
+            rules['bymonthday'] = _bymonthday  # first day of the month
         elif self.plan.interval == self.plan.INTERVALS.WEEK:
             rules['byweekday'] = 0  # first day of the week (Monday)
         elif self.plan.interval == self.plan.INTERVALS.YEAR:
@@ -380,20 +380,35 @@ class Subscription(models.Model):
 
         maximum_cycle_end_date = real_cycle_start_date + relativedelta(**relative_delta) - ONE_DAY
 
+        # TODO: print("end:")
+        # TODO: print("real start   ", real_cycle_start_date)
+        # TODO: print("relativedelt ", relativedelta(**relative_delta))
+        # TODO: print("max end      ", maximum_cycle_end_date)
+
         # We know that the cycle end_date is the day before the next cycle start_date,
         # therefore we check if the cycle start_date for our maximum cycle end_date is the same
         # as the initial cycle start_date.
         while True:
             reference_cycle_start_date = self._cycle_start_date(maximum_cycle_end_date,
                                                                 ignore_trial, granulate)
+            # TODO: print("reference cycl start:  ", reference_cycle_start_date)
+            if self.plan.INTERVALS.MONTHISH and reference_cycle_start_date.day > 28:
+                # need to check if start date in current month exists?
+                # perhaps not 
+                # TODO: print("boop")
+                return maximum_cycle_end_date
             # it means the cycle end_date we got is the right one
             if reference_cycle_start_date == real_cycle_start_date:
-                return min(maximum_cycle_end_date, (self.ended_at or datetime.max.date()))
+                r = min(maximum_cycle_end_date, (self.ended_at or datetime.max.date()))
+                # TODO: print(" r ", r)
+                return r
             elif reference_cycle_start_date < real_cycle_start_date:
                 # This should never happen in normal conditions, but it may stop infinite looping
                 return None
 
             maximum_cycle_end_date = reference_cycle_start_date - ONE_DAY
+            # TODO: print("reference cycl start:  ", reference_cycle_start_date)
+            # TODO: print("max cycle end again :  ", maximum_cycle_end_date)
 
     @property
     def prebill_plan(self):
