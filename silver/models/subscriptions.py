@@ -302,8 +302,6 @@ class Subscription(models.Model):
             'interval_type': self._INTERVALS_CODES[self.plan.interval],
             'interval_count': 1 if granulate else self.plan.interval_count,
         }
-        print("bbq")
-        print(rules)
         if self.plan.interval == self.plan.INTERVALS.MONTH:
             rules['bymonthday'] = 1  # first day of the month
         elif self.plan.interval == self.plan.INTERVALS.MONTHISH:

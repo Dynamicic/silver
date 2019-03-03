@@ -73,6 +73,48 @@ class SubscriptionBillingDates(TestCase):
         super(SubscriptionBillingDates, self).__init__(*args, **kwargs)
         self.output = StringIO()
 
+
+    ### Some shared objects
+
+    @property
+    def provider(self):
+        return ProviderFactory.create(flow=Provider.FLOWS.INVOICE,
+                                      default_document_state=Provider.DEFAULT_DOC_STATE.ISSUED)
+
+    @property
+    def customer(self):
+        return CustomerFactory.create(consolidated_billing=False,
+                                      sales_tax_percent=Decimal('0.00'))
+
+    @property
+    def seat_feature(self):
+        return MeteredFeatureFactory(
+            name="Charcoal Users",
+            unit="Seats",
+            included_units=Decimal('0.00'),
+            product_code=ProductCodeFactory(value="charc-seats"),
+            price_per_unit=Decimal('0.0'))
+
+    @property
+    def metered_feature(self):
+        return MeteredFeatureFactory(name="Charcoal Base Units",
+                                     unit="Barrels (per seat)",
+                                     included_units=Decimal('0.00'),
+                                     included_units_during_trial=Decimal('0.00'),
+                                     product_code=ProductCodeFactory(value="charc-base"),
+                                     price_per_unit= Decimal('5.00'),)
+    def plan(self, **kwargs):
+        return PlanFactory.create(
+                                  generate_after=0,
+                                  enabled=True,
+                                  product_code=ProductCodeFactory(value="monthly-deliv-plan"),
+                                  amount=Decimal('10.00'),
+                                  prebill_plan=False,
+                                  currency='USD',
+                                  trial_period_days=None,
+                                  cycle_billing_duration=dt.timedelta(days=1),
+                                  **kwargs)
+
     @pytest.mark.django_db
     def test_that_issued_date_works_as_expected(self):
         """ Test that usage under and above a certain amount tracks with
@@ -91,27 +133,14 @@ class SubscriptionBillingDates(TestCase):
         feature_usage_start    = dt.date(2018, 1, 2)
         feature_usage_end      = dt.date(2018, 1, 30)
 
-        provider = ProviderFactory.create(flow=Provider.FLOWS.INVOICE,
-                                          default_document_state=Provider.DEFAULT_DOC_STATE.ISSUED)
-
-        customer = CustomerFactory.create(consolidated_billing=False,
-                                          sales_tax_percent=Decimal('0.00'))
+        provider = self.provider
+        customer = self.customer
         currency = 'USD'
 
-        seat_feature = MeteredFeatureFactory(
-            name="Charcoal Users",
-            unit="Seats",
-            included_units=Decimal('0.00'),
-            product_code=ProductCodeFactory(value="charc-seats"),
-            price_per_unit=Decimal('0.0'))
+        seat_feature = self.seat_feature
         seat_feature.save()
 
-        metered_feature = MeteredFeatureFactory(name="Charcoal Base Units",
-                                                unit="Barrels (per seat)",
-                                                included_units=Decimal('0.00'),
-                                                included_units_during_trial=Decimal('0.00'),
-                                                product_code=ProductCodeFactory(value="charc-base"),
-                                                price_per_unit= Decimal('5.00'),)
+        metered_feature = self.metered_feature
         metered_feature.save()
 
         plan = PlanFactory.create(interval=Plan.INTERVALS.MONTH,
@@ -156,7 +185,6 @@ class SubscriptionBillingDates(TestCase):
 
         assert invoice.issue_date == next_billing_date
         assert invoice.total == Decimal(110.0)
-
 
     def test_rrule_monthly_for_various_dates(self):
         # Testing some assumptions on rrule.
@@ -218,13 +246,11 @@ class SubscriptionBillingDates(TestCase):
         d = r[1] - r[0]
         assert d.days == 31
 
-
     @pytest.mark.django_db
     def test_that_monthly_billed_plan_issue_date_follows_start_date(self):
-        """ Test that usage under and above a certain amount tracks with
-        assumptions.
-          TODO: rrule that works
-        """
+        """ Create a monthly plan starting on 1/7, with the MONTHISH
+        setting. Confirm that billing happens on 2/8.  """
+
         # Set up the timescale.
         start_date              =  dt.date(2018, 1, 7)
         end_of_start_month      =  dt.date(2018, 1, 31)
@@ -237,41 +263,19 @@ class SubscriptionBillingDates(TestCase):
         feature_usage_start    = dt.date(2018, 1, 9)
         feature_usage_end      = dt.date(2018, 1, 10)
 
-        provider = ProviderFactory.create(flow=Provider.FLOWS.INVOICE,
-                                          default_document_state=Provider.DEFAULT_DOC_STATE.ISSUED)
+        provider = self.provider
+        customer = self.customer
 
-        customer = CustomerFactory.create(consolidated_billing=False,
-                                          sales_tax_percent=Decimal('0.00'))
-        currency = 'USD'
-
-        seat_feature = MeteredFeatureFactory(
-            name="Charcoal Users",
-            unit="Seats",
-            included_units=Decimal('0.00'),
-            product_code=ProductCodeFactory(value="charc-seats"),
-            price_per_unit=Decimal('0.0'))
+        seat_feature = self.seat_feature
         seat_feature.save()
 
-        metered_feature = MeteredFeatureFactory(name="Charcoal Base Units",
-                                                unit="Barrels (per seat)",
-                                                included_units=Decimal('0.00'),
-                                                included_units_during_trial=Decimal('0.00'),
-                                                product_code=ProductCodeFactory(value="charc-base"),
-                                                price_per_unit= Decimal('5.00'),)
+        metered_feature = self.metered_feature
         metered_feature.save()
 
-        plan = PlanFactory.create(interval=Plan.INTERVALS.MONTHISH,
-                                  interval_count=1,
-                                  generate_after=0,
-                                  enabled=True,
-                                  provider=provider,
-                                  product_code=ProductCodeFactory(value="monthly-deliv-plan"),
-                                  amount=Decimal('10.00'),
-                                  prebill_plan=False,
-                                  currency=currency,
-                                  trial_period_days=None,
-                                  cycle_billing_duration=dt.timedelta(days=1),
-                                  metered_features=[metered_feature])
+        plan = self.plan(interval=Plan.INTERVALS.MONTHISH,
+                         interval_count=1,
+                         metered_features=[metered_feature],
+                         provider=provider,)
         plan.save()
 
         # Create the prorated subscription
@@ -318,13 +322,19 @@ class SubscriptionBillingDates(TestCase):
         assert invoice.issue_date == curr_billing_date
         assert invoice.total > Decimal(10.0)
 
-
     @pytest.mark.django_db
-    @pytest.mark.skip
     def test_that_daily_billed_plan_issue_date_follows_start_date(self):
-        """ Test that usage under and above a certain amount tracks with
-        assumptions.
+        """ Create a monthly plan that starts on 1/7, test that
+        follow-up billing documents are generated accurately with
+        MONTHISH interval on two separate months.
+
+        TODO: reproduce this test using roughly the same rrules instance
+        that the plan creates, run through a year of dates and make sure
+        they line up.
+
+        TODO: seats do or don't carry over?
         """
+
         # Set up the timescale.
         start_date              =  dt.date(2018, 1, 7)
         end_of_start_month      =  dt.date(2018, 1, 31)
@@ -337,41 +347,19 @@ class SubscriptionBillingDates(TestCase):
         feature_usage_start    = dt.date(2018, 1, 9)
         feature_usage_end      = dt.date(2018, 1, 9)
 
-        provider = ProviderFactory.create(flow=Provider.FLOWS.INVOICE,
-                                          default_document_state=Provider.DEFAULT_DOC_STATE.ISSUED)
+        provider = self.provider
+        customer = self.customer
 
-        customer = CustomerFactory.create(consolidated_billing=False,
-                                          sales_tax_percent=Decimal('0.00'))
-        currency = 'USD'
-
-        seat_feature = MeteredFeatureFactory(
-            name="Charcoal Users",
-            unit="Seats",
-            included_units=Decimal('0.00'),
-            product_code=ProductCodeFactory(value="charc-seats"),
-            price_per_unit=Decimal('0.0'))
+        seat_feature = self.seat_feature
         seat_feature.save()
 
-        metered_feature = MeteredFeatureFactory(name="Charcoal Base Units",
-                                                unit="Barrels (per seat)",
-                                                included_units=Decimal('0.00'),
-                                                included_units_during_trial=Decimal('0.00'),
-                                                product_code=ProductCodeFactory(value="charc-base"),
-                                                price_per_unit= Decimal('5.00'),)
+        metered_feature = self.metered_feature
         metered_feature.save()
 
-        plan = PlanFactory.create(interval=Plan.INTERVALS.DAY,
-                                  interval_count=31,
-                                  generate_after=0,
-                                  enabled=True,
-                                  provider=provider,
-                                  product_code=ProductCodeFactory(value="monthly-deliv-plan"),
-                                  amount=Decimal('10.00'),
-                                  prebill_plan=False,
-                                  currency=currency,
-                                  trial_period_days=None,
-                                  cycle_billing_duration=dt.timedelta(days=1),
-                                  metered_features=[metered_feature])
+        plan = self.plan(metered_features=[metered_feature],
+                         interval_count=1,
+                         interval=Plan.INTERVALS.MONTHISH,
+                         provider=provider,)
         plan.save()
 
         # Create the prorated subscription
@@ -417,9 +405,12 @@ class SubscriptionBillingDates(TestCase):
 
         assert invoice.issue_date == curr_billing_date
         assert invoice.total >= Decimal(110.0)
-        invoice.pay(paid_date='2018-02-08')
+        invoice.pay(paid_date='2018-02-09')
         invoice.save()
 
+        call_command('generate_docs',
+                     date=generate_docs_date('2018-02-10'),
+                     stdout=self.output)
 
         # Next period
         start_date              =  dt.date(2018, 2, 7) # + 30 days = 3/7/2018
@@ -427,9 +418,8 @@ class SubscriptionBillingDates(TestCase):
         no_invoice_issued_here  =  dt.date(2018, 3, 3)
         first_invoice_date      =  dt.date(2018, 3, 7)
 
-        curr_billing_date = generate_docs_date('2018-03-09')
+        curr_billing_date = generate_docs_date('2018-03-10')
 
-        # TODO: seats do or don't carry over?
         # seat_feature_usage_set = dt.date(2018, 2, 8)
         feature_usage_start    = dt.date(2018, 2, 12)
         feature_usage_end      = dt.date(2018, 2, 12)
@@ -442,24 +432,150 @@ class SubscriptionBillingDates(TestCase):
                                              consumed_units=Decimal('20.00'))
         mf.save()
 
-        # TODO: does unit usage total up correctly if the feature has
-        # included units that were used on the previous cycle? are
-        # included units on a per cycle basis?
-
         call_command('generate_docs',
                      date=no_invoice_issued_here,
                      stdout=self.output)
 
         assert Invoice.objects.all().count() == 1
-        invoice = Invoice.objects.all().last()
+        invoice = Invoice.objects.all().first()
 
         call_command('generate_docs',
                      date=curr_billing_date,
                      stdout=self.output)
 
-        assert Invoice.objects.all().count() == 1
-        invoice = Invoice.objects.all().last()
+        assert Invoice.objects.all().count() == 2
+        invoice = Invoice.objects.all().first()
 
         assert subscription.state == Subscription.STATES.ACTIVE
         assert invoice.issue_date == curr_billing_date
         assert invoice.total >= Decimal(110.0)
+
+
+
+    @pytest.mark.django_db
+    def test_that_daily_billed_plan_issue_date_carries_for_a_year(self):
+        """ Test a scenario out for a year
+
+        """
+        from dateutil.rrule import rrule, MONTHLY
+        from datetime import datetime, timedelta
+        from calendar import monthrange
+
+        # Billing by the last day of each month, with a start date that
+        # includes all possible months. (Same basic result)
+
+        # Set up the timescale.
+        cycle_start_dates       =  dt.date(2018, 1, 7)
+
+        # These are each month on the same day.
+        # [datetime.datetime(), ...]
+        intervals = list(rrule(MONTHLY,
+                               count=12,
+                               bymonthday=cycle_start_dates.day,
+                               dtstart=cycle_start_dates))
+
+        provider = self.provider
+        customer = self.customer
+
+        seat_feature = self.seat_feature
+        seat_feature.save()
+
+        metered_feature = self.metered_feature
+        metered_feature.save()
+
+        plan = self.plan(metered_features=[metered_feature],
+                         interval_count=1,
+                         interval=Plan.INTERVALS.MONTHISH,
+                         provider=provider,)
+        plan.save()
+
+        # Create the prorated subscription
+        subscription = SubscriptionFactory.create(plan=plan,
+                                                  start_date=cycle_start_dates,
+                                                  customer=customer)
+        subscription.activate()
+        subscription.save()
+
+        invoice_issued_assumed = 0
+        for cycle_start in intervals:
+
+            print(" -- cycle -- ")
+            start_date              =  cycle_start.date()
+            end_of_start_month      =  dt.date(start_date.year,
+                                               start_date.month,
+                                               monthrange(start_date.year, start_date.month)[1]
+                                               )
+
+            print("  month start:      ", start_date)
+            print("  month end (cal.): ", end_of_start_month)
+
+            no_invoice_issued_here  = start_date + timedelta(days=20)
+            # no_invoice_issued_here  =  dt.date(start_date.year, start_date.month + 1, 3)
+            first_invoice_date      =  start_date + timedelta(days=30)
+
+            print("  no invoice check: ", no_invoice_issued_here)
+            print("  first invoice:    ", first_invoice_date)
+
+            deltawerk = start_date + timedelta(days=31)
+
+            curr_billing_date = dt.date(start_date.year,
+                                        start_date.month + 1,
+                                        deltawerk.day)
+
+            day_delta = start_date + timedelta(days=3)
+
+            seat_feature_usage_set = dt.date(start_date.year, start_date.month, day_delta.day)
+            feature_usage_start    = dt.date(start_date.year, start_date.month, day_delta.day + 1)
+            feature_usage_end      = dt.date(start_date.year, start_date.month, day_delta.day + 1)
+
+            print("  feature usage:    ", feature_usage_start)
+            print("                -   ", seat_feature_usage_set)
+            print("                -   ", feature_usage_end)
+
+            call_command('generate_docs',
+                         date=feature_usage_start,
+                         stdout=self.output)
+
+            # Track some usage
+            mf = MeteredFeatureUnitsLogFactory.create(subscription=subscription,
+                                                 metered_feature=metered_feature,
+                                                 start_date=feature_usage_start,
+                                                 end_date=feature_usage_end,
+                                                 consumed_units=Decimal('20.00'))
+            mf.save()
+
+            # No invoices are generated here because the month hasn't passed
+            call_command('generate_docs',
+                         date=end_of_start_month,
+                         stdout=self.output)
+
+            assert Invoice.objects.all().count() == invoice_issued_assumed
+
+
+            # Invoices SHOULD NOT be generated here because the billing
+            # period shouldn't end.
+            call_command('generate_docs',
+                         date=no_invoice_issued_here,
+                         stdout=self.output)
+
+            assert Invoice.objects.all().count() == invoice_issued_assumed
+
+            call_command('generate_docs',
+                         date=curr_billing_date,
+                         stdout=self.output)
+
+            invoice_issued_assumed += 1
+
+            assert Invoice.objects.all().count() == invoice_issued_assumed
+            invoice = Invoice.objects.all().first()
+
+            assert invoice.issue_date == curr_billing_date
+            assert invoice.total >= Decimal(110.0)
+            invoice_pay_date        =  invoice.issue_date + timedelta(days=1)
+            invoice.pay(paid_date=invoice_pay_date.strftime("%Y-%m-%d"))
+            invoice.save()
+            print("  invoice pay:      ", invoice_pay_date)
+            print(" -- cycle end -- ")
+
+        # hacky debug 
+        # assert 1 == 0
