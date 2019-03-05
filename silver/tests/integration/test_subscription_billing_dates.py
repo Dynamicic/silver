@@ -581,10 +581,13 @@ class SubscriptionBillingDates(TestCase):
 
             print("  invoice issued:   ", first_invoice_date)
 
+            # No invoices are generated here despite feature usage
+            inv_c = Invoice.objects.all().count()
             call_command('generate_docs',
                          date=feature_usage_start,
                          subscription=subscription.id,
                          stdout=self.output)
+            assert Invoice.objects.all().count() == inv_c
 
             # Track some usage
             mf = MeteredFeatureUnitsLogFactory.create(subscription=subscription,
@@ -622,17 +625,19 @@ class SubscriptionBillingDates(TestCase):
                          subscription=subscription.id,
                          stdout=self.output)
 
-            # invoice_issued_assumed += 1
 
-            # assert Invoice.objects.all().count() == invoice_issued_assumed
             print("  invoice count:     ", Invoice.objects.all().count())
             invoice = Invoice.objects.all().first()
+            assert invoice != None
+
+            invoice_issued_assumed += 1
 
             # looks like invoice gets issued at wrong time
             assert invoice.issue_date == curr_billing_date
             assert invoice.total >= Decimal(0.0)
             invoice_pay_date        =  invoice.issue_date + timedelta(days=1)
             print("  invoice date:     ", invoice.issue_date)
+            assert invoice.issue_date == curr_billing_date
             invoice.pay(paid_date=invoice_pay_date.strftime("%Y-%m-%d"))
             invoice.save()
             print("  invoice pay:      ", invoice_pay_date)
@@ -668,15 +673,6 @@ class SubscriptionBillingDates(TestCase):
         does not exist in all months: Jan. 28
         """
 
-        # Billing by the last day of each month, with a start date that
-        # includes all possible months. (Same basic result)
-
-        # Set up the timescale.
-
-        # works
-        # cycle_start_dates       =  dt.date(2018, 1, 27)
-
-        # works
         cycle_start_dates       =  dt.date(2018, 1, 28)
         self._test_year_for_interval(cycle_start_dates)
 
@@ -706,6 +702,3 @@ class SubscriptionBillingDates(TestCase):
 
         cycle_start_dates       =  dt.date(2018, 1, 31)
         self._test_year_for_interval(cycle_start_dates)
-
-    # TODO: test that Subscription.should_be_billed isn't broken as a
-    # result of changes here. Must be tests elsewhere for it too.

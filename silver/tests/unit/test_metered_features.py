@@ -233,7 +233,7 @@ class TestMeteredFeatures(TestCase):
                                                 price_per_unit=mf_price,)
 
         plan = PlanFactory.create(interval=Plan.INTERVALS.MONTH,
-                                  interval_count=1,
+                                  interval_count=0,
                                   generate_after=1,
                                   enabled=True,
                                   amount=Decimal('0.00'),
