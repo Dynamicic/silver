@@ -106,3 +106,4 @@ db.sqlite3
 
 # Redis dump
 dump.rdb
+*.lock

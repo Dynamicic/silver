@@ -46,6 +46,7 @@ def create_client(schema=False, debug=True):
 
        :param schema: Provide a schema URL. Defaults to a local testing
            schema.
+       :param debug: Extra debug logs
 
        :returns: pyswagger.App, pyswagger.Client
     """
@@ -80,7 +81,7 @@ def create_client(schema=False, debug=True):
         client = SwaggerClient.from_url(schema or env_schema,
                                         # request_headers=auth_header,
                                         http_client=http,
-                                        config=SWAGGER_CONFIG)
+                                        config=config)
     else:
         print("No schema provided.")
         sys.exit()
@@ -89,6 +90,15 @@ def create_client(schema=False, debug=True):
 
 
 class SilverClient(object):
-    def __init__(self, schema=False, debug=True):
-        self.client = create_client(schema=schema, debug=debug)
+    """
+        :param schema: An optional alternative schema to use.
+        :type schema: bbq
+        :param debug: Enable extra debug logs
+        :type debug: bool.
+        :param config: Config for overriding override SWAGGER_OPTIONS.
+        :type config: dict.
+    """
+
+    def __init__(self, schema=False, debug=True, config=SWAGGER_CONFIG):
+        self.client = create_client(schema=schema, debug=debug, config=config)
 

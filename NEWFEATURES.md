@@ -4,6 +4,16 @@ Here's a running overview of some of the new features we've created for Silver.
 Some of these include keywords for searching the codebase (via `ag` or
 something) to find the implementation.
 
+## Variable subscription billing dates
+
+### keyword: SetBillingDates
+
+This feature pins the billing date of monthly plans to whatever date the
+subscription began on. To activate it, set up a plan with interval set to
+`monthish`.
+
+    Plan(interval='monthish')
+
 ## Linked feature calculation
 
 ### keyword: LinkedFeaturesFeature

@@ -7,20 +7,26 @@ full-test: test
 	touch /tmp/test.env
 
 /tmp/test.sdk.env: 
-	cd /code/silver/infra/silversdk/
-	python setup.py develop
-	pip install watchdog
-	touch /tmp/test.sdk.env
+	cd /code/silver/infra/silversdk/ \
+		&& python setup.py develop \
+		&& pip install watchdog \
+		&& pip install -r docs/requirements.txt \
+		&& touch /tmp/test.sdk.env
 
-runsdk:
+.PHONY: 
+sdkdocs: /tmp/test.sdk.env
+	cd /code/silver/infra/silversdk/ && make doc
+
+.PHONY: 
+runsdk: /tmp/test.sdk.env
 	cd /code/silver/infra/silversdk/ && \
-		flock -n testing.lock silversdk --list-endpoints
+		flock -n testing.lock silversdk --test-client
 
 watchsdk: /tmp/test.sdk.env
 	cd /code/silver/infra/silversdk/ && watchmedo shell-command \
 		--patterns="*.py" \
 		--recursive \
-		--command="make runsdk"
+		--command="flock -n sdk.testing.lock make -f ../../Makefile runsdk"
 
 testwatch: /tmp/test.env
 	watchmedo shell-command \

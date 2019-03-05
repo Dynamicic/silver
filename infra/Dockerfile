@@ -1,4 +1,4 @@
-from python:3.4.9-alpine3.8
+from python:3.7.2-alpine3.8
 MAINTAINER ryan
 
 # Ensure that Python outputs everything that's printed inside
