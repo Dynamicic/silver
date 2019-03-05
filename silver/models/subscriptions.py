@@ -302,6 +302,7 @@ class Subscription(models.Model):
             'interval_type': self._INTERVALS_CODES[self.plan.interval],
             'interval_count': 1 if granulate else self.plan.interval_count,
         }
+
         if self.plan.interval == self.plan.INTERVALS.MONTH:
             rules['bymonthday'] = 1  # first day of the month
         elif self.plan.interval == self.plan.INTERVALS.MONTHISH:
@@ -311,8 +312,13 @@ class Subscription(models.Model):
             # be excluded from billing.
             # DOC: https://dateutil.readthedocs.io/en/stable/rrule.html
             #
-            if start_d > 28:
-                _bymonthday = -3 - (start_d - 28)
+            if start_d >= 28:
+                # if month day > 28 also?
+                if reference_date.day >= 28:
+                    _bymonthday = 28
+                else:
+                    _bymonthday = start_d
+                    # -1 - (start_d - 28)
             else:
                 _bymonthday = start_d
             rules['bymonthday'] = _bymonthday  # first day of the month
@@ -380,35 +386,25 @@ class Subscription(models.Model):
 
         maximum_cycle_end_date = real_cycle_start_date + relativedelta(**relative_delta) - ONE_DAY
 
-        # TODO: print("end:")
-        # TODO: print("real start   ", real_cycle_start_date)
-        # TODO: print("relativedelt ", relativedelta(**relative_delta))
-        # TODO: print("max end      ", maximum_cycle_end_date)
-
         # We know that the cycle end_date is the day before the next cycle start_date,
         # therefore we check if the cycle start_date for our maximum cycle end_date is the same
         # as the initial cycle start_date.
         while True:
             reference_cycle_start_date = self._cycle_start_date(maximum_cycle_end_date,
                                                                 ignore_trial, granulate)
-            # TODO: print("reference cycl start:  ", reference_cycle_start_date)
-            if self.plan.INTERVALS.MONTHISH and reference_cycle_start_date.day > 28:
+            if self.plan.INTERVALS.MONTHISH and reference_cycle_start_date.day >= 27:
                 # need to check if start date in current month exists?
                 # perhaps not 
-                # TODO: print("boop")
                 return maximum_cycle_end_date
             # it means the cycle end_date we got is the right one
             if reference_cycle_start_date == real_cycle_start_date:
                 r = min(maximum_cycle_end_date, (self.ended_at or datetime.max.date()))
-                # TODO: print(" r ", r)
                 return r
             elif reference_cycle_start_date < real_cycle_start_date:
                 # This should never happen in normal conditions, but it may stop infinite looping
                 return None
 
             maximum_cycle_end_date = reference_cycle_start_date - ONE_DAY
-            # TODO: print("reference cycl start:  ", reference_cycle_start_date)
-            # TODO: print("max cycle end again :  ", maximum_cycle_end_date)
 
     @property
     def prebill_plan(self):
@@ -538,7 +534,13 @@ class Subscription(models.Model):
         if self.state not in [self.STATES.ACTIVE, self.STATES.CANCELED]:
             return False
 
-        if not generate_documents_datetime:
+        # This was an entirely unused function parameter. We need a
+        # datetime here, so add it together with whatever the timezone
+        # is in the instance that we're passing in a billing date.
+        if billing_date:
+            generate_documents_datetime = datetime.combine(billing_date,
+                                                           datetime.min.time()).replace(tzinfo=utc)
+        else:
             generate_documents_datetime = timezone.now()
 
         if self.cycle_billing_duration:
@@ -559,6 +561,7 @@ class Subscription(models.Model):
             return False
 
         cycle_start_date = self.cycle_start_date(billing_date)
+        cycle_end_date   = self.cycle_end_date(billing_date)
 
         if not cycle_start_date:
             return False
@@ -593,7 +596,15 @@ class Subscription(models.Model):
 
         # wait until the cycle that is going to be billed ends:
         billed_cycle_end_date = self.cycle_end_date(plan_billed_up_to + ONE_DAY)
-        return billed_cycle_end_date < cycle_start_date
+
+        # This breaks for the monthish interval, because it assumes the
+        # wrong start date for cycles.
+        if self.plan.INTERVALS.MONTHISH:
+            return generate_documents_datetime.date() > billed_cycle_end_date
+        else:
+            # So why does this flip here for some reason? end dates not
+            # compatible?
+            return billed_cycle_end_date < cycle_start_date
 
     @property
     def _has_existing_customer_with_consolidated_billing(self):
