@@ -25,6 +25,9 @@ from silver.models import Plan, Subscription, BillingLog
 from silver.tests.factories import (SubscriptionFactory, MeteredFeatureFactory,
                                     PlanFactory)
 
+from django.utils import timezone
+
+NOW = timezone.now()
 
 class TestSubscription(TestCase):
     def test_subscription_mf_units_log_intervals_1(self):
@@ -469,8 +472,8 @@ class TestSubscriptionShouldBeBilled(TestCase):
             Subscription,
             _has_existing_customer_with_consolidated_billing=true_property
         ):
-            assert subscription.should_be_billed(correct_billing_date) is True
-            assert subscription.should_be_billed(incorrect_billing_date) is False
+            assert subscription.should_be_billed(correct_billing_date, NOW) is True
+            assert subscription.should_be_billed(incorrect_billing_date, NOW) is False
 
     def test_sub_canceled_now_w_consolidated_billing(self):
         plan = PlanFactory.create(generate_after=120)
@@ -488,8 +491,8 @@ class TestSubscriptionShouldBeBilled(TestCase):
             Subscription,
             _has_existing_customer_with_consolidated_billing=true_property
         ):
-            assert subscription.should_be_billed(billing_date_1) is True
-            assert subscription.should_be_billed(billing_date_2) is True
+            assert subscription.should_be_billed(billing_date_1, NOW) is True
+            assert subscription.should_be_billed(billing_date_2, NOW) is True
 
     def test_canceled_sub_wa_consolidated_billing(self):
         plan = PlanFactory.create(generate_after=120)
@@ -506,7 +509,7 @@ class TestSubscriptionShouldBeBilled(TestCase):
             Subscription,
             _has_existing_customer_with_consolidated_billing=false_property
         ):
-            assert subscription.should_be_billed(correct_billing_date) is True
+            assert subscription.should_be_billed(correct_billing_date, NOW) is True
 
     def test_canceled_sub_w_date_before_cancel_date(self):
         plan = PlanFactory.create(generate_after=120)
@@ -518,7 +521,7 @@ class TestSubscriptionShouldBeBilled(TestCase):
         )
         incorrect_billing_date = datetime.date(2015, 8, 10)
 
-        assert subscription.should_be_billed(incorrect_billing_date) is False
+        assert subscription.should_be_billed(incorrect_billing_date, NOW) is False
 
     def test_new_active_sub_no_trial_w_consolidated_billing(self):
         plan = PlanFactory.create(generate_after=120)
@@ -540,8 +543,8 @@ class TestSubscriptionShouldBeBilled(TestCase):
             is_billed_first_time=true_property,
             bucket_end_date=mocked_bucket_end_date,
         ):
-            assert subscription.should_be_billed(correct_billing_date) is True
-            assert subscription.should_be_billed(incorrect_billing_date) is False
+            assert subscription.should_be_billed(correct_billing_date, NOW) is True
+            assert subscription.should_be_billed(incorrect_billing_date, NOW) is False
 
     def test_new_active_sub_no_trial_wa_consolidated_billing(self):
         plan = PlanFactory.create(generate_after=120)
@@ -560,8 +563,8 @@ class TestSubscriptionShouldBeBilled(TestCase):
             is_billed_first_time=true_property,
             _has_existing_customer_with_consolidated_billing=false_property,
         ):
-            assert subscription.should_be_billed(correct_billing_date_1) is True
-            assert subscription.should_be_billed(correct_billing_date_2) is True
+            assert subscription.should_be_billed(correct_billing_date_1, NOW) is True
+            assert subscription.should_be_billed(correct_billing_date_2, NOW) is True
 
     def test_new_active_sub_with_smaller_billing_date_than_start_date(self):
         plan = PlanFactory.create(generate_after=120)
@@ -593,10 +596,10 @@ class TestSubscriptionShouldBeBilled(TestCase):
             is_billed_first_time=true_property,
             _has_existing_customer_with_consolidated_billing=true_property,
         ):
-            assert subscription.should_be_billed(correct_billing_date_1) is True
-            assert subscription.should_be_billed(correct_billing_date_2) is True
-            assert subscription.should_be_billed(incorrect_billing_date_1) is False
-            assert subscription.should_be_billed(incorrect_billing_date_2) is False
+            assert subscription.should_be_billed(correct_billing_date_1, NOW) is True
+            assert subscription.should_be_billed(correct_billing_date_2, NOW) is True
+            assert subscription.should_be_billed(incorrect_billing_date_1, NOW) is False
+            assert subscription.should_be_billed(incorrect_billing_date_2, NOW) is False
 
     def test_new_active_sub_trial_end_same_month_as_start_date_wa_cb(self):
         plan = PlanFactory.create(generate_after=100)
@@ -621,9 +624,9 @@ class TestSubscriptionShouldBeBilled(TestCase):
             _has_existing_customer_with_consolidated_billing=false_property,
             bucket_end_date=mocked_bucket_end_date
         ):
-            assert subscription.should_be_billed(correct_billing_date_1) is True
-            assert subscription.should_be_billed(correct_billing_date_2) is True
-            assert subscription.should_be_billed(incorrect_billing_date) is False
+            assert subscription.should_be_billed(correct_billing_date_1, NOW) is True
+            assert subscription.should_be_billed(correct_billing_date_2, NOW) is True
+            assert subscription.should_be_billed(incorrect_billing_date, NOW) is False
 
     def test_new_active_sub_trial_end_different_month_from_start_date_w_cb(self):
         plan = PlanFactory.create(generate_after=100)
@@ -648,10 +651,10 @@ class TestSubscriptionShouldBeBilled(TestCase):
             _has_existing_customer_with_consolidated_billing=true_property,
             bucket_end_date=mocked_bucket_end_date
         ):
-            assert subscription.should_be_billed(correct_billing_date_1) is True
-            assert subscription.should_be_billed(correct_billing_date_2) is True
-            assert subscription.should_be_billed(incorrect_billing_date_1) is False
-            assert subscription.should_be_billed(incorrect_billing_date_2) is False
+            assert subscription.should_be_billed(correct_billing_date_1, NOW) is True
+            assert subscription.should_be_billed(correct_billing_date_2, NOW) is True
+            assert subscription.should_be_billed(incorrect_billing_date_1, NOW) is False
+            assert subscription.should_be_billed(incorrect_billing_date_2, NOW) is False
 
     def test_already_billed_sub_w_cb_on_trial_last_billing_date(self):
         plan = PlanFactory.create(generate_after=100)
@@ -679,10 +682,10 @@ class TestSubscriptionShouldBeBilled(TestCase):
             last_billing_date=mocked_last_billing_date,
             _has_existing_customer_with_consolidated_billing=true_property,
         ):
-            assert subscription.should_be_billed(correct_billing_date_1) is True
-            assert subscription.should_be_billed(correct_billing_date_2) is True
-            assert subscription.should_be_billed(correct_billing_date_3) is True
-            assert subscription.should_be_billed(incorrect_billing_date) is False
+            assert subscription.should_be_billed(correct_billing_date_1, NOW) is True
+            assert subscription.should_be_billed(correct_billing_date_2, NOW) is True
+            assert subscription.should_be_billed(correct_billing_date_3, NOW) is True
+            assert subscription.should_be_billed(incorrect_billing_date, NOW) is False
 
     def test_already_billed_sub_wa_cb_on_trial_last_billing_date(self):
         plan = PlanFactory.create(generate_after=100,
@@ -713,8 +716,8 @@ class TestSubscriptionShouldBeBilled(TestCase):
             _has_existing_customer_with_consolidated_billing=false_property,
             bucket_end_date=mocked_bucket_end_date
         ):
-            assert subscription.should_be_billed(correct_billing_date) is True
-            assert subscription.should_be_billed(incorrect_billing_date_1) is False
+            assert subscription.should_be_billed(correct_billing_date, NOW) is True
+            assert subscription.should_be_billed(incorrect_billing_date_1, NOW) is False
 
     def test_already_billed_sub_wa_cb(self):
         plan = PlanFactory.create(generate_after=100,
@@ -735,10 +738,10 @@ class TestSubscriptionShouldBeBilled(TestCase):
                                   plan_billed_up_to=datetime.date(2015, 9, 30),
                                   metered_features_billed_up_to=datetime.date(2015, 9, 2))
 
-        assert subscription.should_be_billed(correct_billing_date) is True
-        assert subscription.should_be_billed(incorrect_billing_date_1) is False
-        assert subscription.should_be_billed(incorrect_billing_date_2) is False
-        assert subscription.should_be_billed(incorrect_billing_date_3) is False
+        assert subscription.should_be_billed(correct_billing_date, NOW) is True
+        assert subscription.should_be_billed(incorrect_billing_date_1, NOW) is False
+        assert subscription.should_be_billed(incorrect_billing_date_2, NOW) is False
+        assert subscription.should_be_billed(incorrect_billing_date_3, NOW) is False
 
     def test_canceled_sub_with_billed_plan_but_not_metered_features_1(self):
         plan = PlanFactory.create(generate_after=100,
@@ -770,9 +773,9 @@ class TestSubscriptionShouldBeBilled(TestCase):
             < billing_log.plan_billed_up_to \
             < correct_billing_date_2 \
 
-        assert subscription.should_be_billed(correct_billing_date_1)
-        assert subscription.should_be_billed(correct_billing_date_2)
-        assert not subscription.should_be_billed(incorrect_billing_date)
+        assert subscription.should_be_billed(correct_billing_date_1, NOW)
+        assert subscription.should_be_billed(correct_billing_date_2, NOW)
+        assert not subscription.should_be_billed(incorrect_billing_date, NOW)
 
     def test_canceled_sub_with_billed_plan_but_not_metered_features_2(self):
         # Like previous test, but this time there's cycle_billing_duration added to the mix
@@ -807,9 +810,9 @@ class TestSubscriptionShouldBeBilled(TestCase):
             <= billing_log.plan_billed_up_to \
             < correct_billing_date
 
-        assert subscription.should_be_billed(correct_billing_date)
-        assert not subscription.should_be_billed(incorrect_billing_date_1)
-        assert not subscription.should_be_billed(incorrect_billing_date_2)
+        assert subscription.should_be_billed(correct_billing_date, NOW)
+        assert not subscription.should_be_billed(incorrect_billing_date_1, NOW)
+        assert not subscription.should_be_billed(incorrect_billing_date_2, NOW)
 
     @freeze_time('2015-01-01')
     def test_updateable_buckets_active_subscription(self):

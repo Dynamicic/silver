@@ -392,14 +392,15 @@ class Subscription(models.Model):
         while True:
             reference_cycle_start_date = self._cycle_start_date(maximum_cycle_end_date,
                                                                 ignore_trial, granulate)
-            if self.plan.INTERVALS.MONTHISH and reference_cycle_start_date.day >= 27:
+
+            if (self.plan.interval == self.plan.INTERVALS.MONTHISH) \
+               and reference_cycle_start_date.day >= 27:
                 # need to check if start date in current month exists?
                 # perhaps not 
                 return maximum_cycle_end_date
             # it means the cycle end_date we got is the right one
             if reference_cycle_start_date == real_cycle_start_date:
-                r = min(maximum_cycle_end_date, (self.ended_at or datetime.max.date()))
-                return r
+                return min(maximum_cycle_end_date, (self.ended_at or datetime.max.date()))
             elif reference_cycle_start_date < real_cycle_start_date:
                 # This should never happen in normal conditions, but it may stop infinite looping
                 return None
@@ -534,14 +535,12 @@ class Subscription(models.Model):
         if self.state not in [self.STATES.ACTIVE, self.STATES.CANCELED]:
             return False
 
-        # This was an entirely unused function parameter. We need a
-        # datetime here, so add it together with whatever the timezone
-        # is in the instance that we're passing in a billing date.
-        if billing_date:
-            generate_documents_datetime = datetime.combine(billing_date,
-                                                           datetime.min.time()).replace(tzinfo=utc)
-        else:
-            generate_documents_datetime = timezone.now()
+        if generate_documents_datetime is None:
+            if billing_date:
+                generate_documents_datetime = datetime.combine(billing_date,
+                                                               datetime.min.time()).replace(tzinfo=utc)
+            else:
+                generate_documents_datetime = timezone.now()
 
         if self.cycle_billing_duration:
             if self.start_date > first_day_of_month(billing_date) + self.cycle_billing_duration:
@@ -599,7 +598,7 @@ class Subscription(models.Model):
 
         # This breaks for the monthish interval, because it assumes the
         # wrong start date for cycles.
-        if self.plan.INTERVALS.MONTHISH:
+        if self.plan.interval == self.plan.INTERVALS.MONTHISH:
             return generate_documents_datetime.date() > billed_cycle_end_date
         else:
             # So why does this flip here for some reason? end dates not

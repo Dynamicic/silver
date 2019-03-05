@@ -35,7 +35,8 @@ testmod:
 	    pytest -vv \
 	    --capture=sys \
 		--pyargs \
-		silver.tests.integration.test_subscription_billing_dates
+		silver.tests.integration.test_subscription_billing_dates \
+		silver.tests.unit.test_subscription 
 
 # silver.tests.integration.test_transactions_overpayments \
 # silver.tests.integration.test_documents_transactions_hooks \
