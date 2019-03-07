@@ -1,3 +1,7 @@
+import os, sys
+sys.path.append('/code/silver/')
+sys.path.append('/code/silver_authorizenet/')
+
 from settings import *
 
 triggered_processor = 'triggered'

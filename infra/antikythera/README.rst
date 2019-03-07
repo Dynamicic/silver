@@ -25,10 +25,6 @@ Quickstart
 * Run python setup.py test
 
 
-
-
-
-
 Features
 --------
 

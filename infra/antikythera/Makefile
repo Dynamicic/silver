@@ -53,6 +53,12 @@ clean-test: ## remove test and coverage artifacts
 lint: ## check style with flake8
 	flake8 antikythera tests
 
+test.env: 
+	cd /code/silver
+	pip install -r requirements/test.txt
+	pip install watchdog
+	touch test.env
+
 test: ## run tests quickly with the default Python
 	DJANGO_SETTINGS_MODULE=antikythera.antikythera.settings_test \
     	pytest -vv \
