@@ -6,11 +6,28 @@ A django app that houses all the billing functionality you've come to know and l
 
 package config TODOs:
 
+* include silver package as a package in antikythera, not as a path
+  modification so that testing isn't a matter of global system config.
+* server setup - $HOME/deploy/antikythera 
 * manage.py only accessible through package, convert it to an entry point
 * test celery task setup
 * handle manual path alteration in some better way
-* include silver package as a package in antikythera, not as a path
-  modification so that testing isn't a matter of global system config.
+
+
+Quickstart
+----------
+
+**Developing**
+
+* Clone the repo, and navigate to this directory.
+* Create a virtualenv or whatever you need
+* Run python setup.py develop
+* Run python setup.py test
+
+
+
+
+
 
 Features
 --------
