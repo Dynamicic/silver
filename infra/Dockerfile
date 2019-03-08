@@ -12,6 +12,8 @@ ENV DJANGO_SETTINGS_MODULE silverintegration.settings
 EXPOSE 8080
 
 RUN set -ex && mkdir -p /silver
+RUN set -ex && mkdir -p /srv/silver
+
 WORKDIR /app
 
 # Install silver
@@ -31,14 +33,17 @@ RUN set -ex \
         zlib-dev \
         libxslt-dev \
         jpeg-dev \
+        uwsgi \
+        uwsgi-python3 \
         musl-dev \
         linux-headers \
         build-base \
     && apk add --no-cache --virtual .build-deps \
         mariadb-dev \
     && update-ca-certificates \
-    && pip install --no-cache-dir -r requirements.txt \
     && apk del .build-deps \
+
+RUN set -ex \
     && wget -qO- https://github.com/jwilder/dockerize/releases/download/v0.2.0/dockerize-linux-amd64-v0.2.0.tar.gz | tar -zxf - -C /usr/bin \
     && chown root:root /usr/bin/dockerize
 
@@ -53,6 +58,12 @@ RUN cd /code/silver_authorizenet \
 RUN cd /app \
     && pip install --no-cache-dir xhtml2pdf.zip
 
-VOLUME /app
+RUN cd /code/silver/infra/antikythera \
+    && python setup.py develop
 
-CMD ["/docker-entrypoint"]
+COPY ./app/antikythera/wsgi.ini /srv/silver
+
+VOLUME /srv/silver
+
+# CMD ["/docker-entrypoint"]
+CMD ["uwsgi wsgi.ini"]

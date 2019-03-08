@@ -4,7 +4,7 @@ from celery import Celery
 from .hooktask import process_hooks
 
 # set the default Django settings module for the 'celery' program.
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'server.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'antikythera.settings')
 
 app = Celery('proj', broker=os.environ['DJANGO_BROKER_URL'], backend=os.environ['REDIS_HOST_STRING'])
 
@@ -22,4 +22,4 @@ app.autodiscover_tasks()
 def debug_task(self):
     print('Request: {0!r}'.format(self.request))
 
-app.task(bind=True, name='server.hooktask.process_hooks')(process_hooks)
+app.task(bind=True, name='antikythera.hooktask.process_hooks')(process_hooks)

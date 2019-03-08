@@ -50,12 +50,8 @@ requirements = [
     'furl>=1,<1.3',
     'xhtml2pdf>=0.2,<0.3',
     'PyPDF2>=1.26,<2',
-]
-
-setup_requirements = ['pytest-runner', ]
-
-test_requirements = [
-    'pytest',
+    'pytest==3.1.3',
+    'pytest-django==3.1.2',
     'mock==1.0.1',
     'flake8==2.4.1',
     'freezegun==0.3.8',
@@ -65,6 +61,11 @@ test_requirements = [
     'factory-boy==2.5.2',
     'pep8==1.7.0',
     'Faker==0.7.17',
+]
+
+setup_requirements = ['pytest-runner', ]
+
+test_requirements = [
 ]
 
 setup(
@@ -86,6 +87,9 @@ setup(
     entry_points={
         'console_scripts': [
             'antikythera=antikythera.cli:main',
+            # This is basically just django-admin but with our own
+            # stuff.
+            'antikythera-manage=antikythera.manage:main',
         ],
     },
     install_requires=requirements,
@@ -93,7 +97,7 @@ setup(
     include_package_data=True,
     keywords='antikythera',
     name='antikythera',
-    packages=find_packages(include=['antikythera', 'antikythera.settings']),
+    packages=find_packages(include=['antikythera']),
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
