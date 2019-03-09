@@ -1,5 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+silver-authorize/
 .mypy_cache/
 *.py[cod]
 *$py.class
@@ -13,6 +14,7 @@ env/
 build/
 develop-eggs/
 dist/
+packages/
 downloads/
 eggs/
 .eggs/

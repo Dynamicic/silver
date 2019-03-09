@@ -1,52 +1,65 @@
-FROM python:2.7.11-alpine
-MAINTAINER Presslabs ping@presslabs.com
+from python:3.7.2-alpine3.8
+MAINTAINER ryan
 
 # Ensure that Python outputs everything that's printed inside
 # the application rather than buffering it, maily for logging purposes
 ENV PYTHONUNBUFFERED 1
 
 # Set default django settings module
-ENV DJANGO_SETTINGS_MODULE settings
+# ENV DJANGO_SETTINGS_MODULE silverintegration.settings
 
 # silver app runs on port 8080
 EXPOSE 8080
 
-RUN set -ex && mkdir -p /silver
-WORKDIR /silver
+RUN set -ex && mkdir -p /code
+RUN set -ex && mkdir -p /srv/silver
 
-# Install silver
-COPY ./requirements /silver/requirements
+WORKDIR /app
+
+# Set up this structure:
+COPY ./silver /code/silver
+COPY ./silver-authorize /code/silver_authorizenet
+COPY ./infra/antikythera /code/antikythera
+COPY ./infra/antikythera/wsgi.ini /srv/silver
+COPY ./docker-scripts /code/docker-scripts
 
 RUN set -ex \
     && apk update \
     && apk add --no-cache \
-        mariadb-client-libs \
+        mariadb-client \
+        mariadb-dev \
         libjpeg-turbo \
         jpeg \
         zlib \
         ca-certificates wget \
-        openssl \
-        openssl-dev \
         libffi-dev \
         zlib-dev \
+        libxslt-dev \
         jpeg-dev \
+        uwsgi \
+        py3-lxml \
+        uwsgi-python3 \
+        musl-dev \
+        linux-headers \
         build-base \
     && apk add --no-cache --virtual .build-deps \
         mariadb-dev \
     && update-ca-certificates \
-    && pip install --no-cache-dir -r requirements/common.txt \
-    && pip install --no-cache-dir -r requirements/optionals.txt \
-    && pip install --no-cache-dir -r requirements/dev.txt \
-    && pip install --no-cache-dir -r requirements/test.txt \
-    && pip install --no-cache-dir gunicorn==19.4.5 \
-    && pip install --no-cache-dir mysql-python \
     && apk del .build-deps \
     && wget -qO- https://github.com/jwilder/dockerize/releases/download/v0.2.0/dockerize-linux-amd64-v0.2.0.tar.gz | tar -zxf - -C /usr/bin \
     && chown root:root /usr/bin/dockerize
 
+RUN cd /code/silver_authorizenet \
+    && pip3 install --no-cache-dir -e .
 
-COPY ./ /silver
+RUN cd /app \
+    && pip3 install --no-cache-dir /code/docker-scripts/xhtml2pdf.zip
 
-VOLUME /silver
+RUN cd /code/antikythera \
+    && python3 setup.py develop
 
-CMD ["/docker-entrypoint"]
+
+VOLUME /code/antikythera/
+
+# CMD ["/docker-entrypoint"]
+CMD ["uwsgi wsgi.ini"]

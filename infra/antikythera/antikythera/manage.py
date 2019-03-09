@@ -4,10 +4,21 @@ import sys
 import dotenv
 import antikythera
 
-if __name__ == "__main__":
-    dotenv.read_dotenv(os.path.join(os.getcwd(), '.env'))
+def main():
+    dotenv.load_dotenv(os.path.join(os.getcwd(), '.env'))
+    sys.path.insert(0, os.path.dirname(__file__))
 
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "antikythera.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "antikythera.antikythera.settings")
+    os.environ['DJANGO_SETTINGS_MODULE'] = "antikythera.antikythera.settings"
+
+    try:
+        extra_paths = os.environ['ANTIKYTHERA_EXTRA_PATHS'].split(':')
+    except:
+        extra_paths = ['/code/silver', '/code/silver_authorizenet/']
+
+    for p in extra_paths:
+        sys.path.append(p)
+
     try:
         from django.core.management import execute_from_command_line
     except ImportError:
@@ -24,3 +35,6 @@ if __name__ == "__main__":
             )
         raise
     execute_from_command_line(sys.argv)
+
+if __name__ == "__main__":
+    main()

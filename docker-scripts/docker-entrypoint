@@ -9,15 +9,15 @@ if [ "$SILVER_TEST_SHELL" == "yes" ] ; then
 fi
 
 if [ "$SILVER_MIGRATE" == "yes" ] ; then
-/usr/local/bin/python3 /app/silverintegration/manage.py migrate --noinput
+antikythera-manage migrate --noinput
 fi
 
 if [ "$SILVER_LOAD_DEV_DATA" == "yes" ] ; then
     # NB: run once
     if [ ! -f fixtures.installed ] ; then
-        /usr/local/bin/python3 /app/silverintegration/manage.py loaddata -i docker-fixtures.json
+        antikythera-manage loaddata -i docker-fixtures.json
     fi
-    /usr/local/bin/python3 /app/silverintegration/manage.py createinitialrevisions
+    antikythera-manage createinitialrevisions
     touch fixtures.installed
 fi
 
@@ -28,6 +28,6 @@ else
     if [ "$SILVER_LOAD_DEV_DATA" == "yes" ] ; then
         echo "TEST ADMIN USER: root / adminadmin"
     fi
-    exec /usr/local/bin/python3 /app/silverintegration/manage.py runserver 0.0.0.0:8080
+    exec antikythera-manage runserver 0.0.0.0:8080
 fi
 

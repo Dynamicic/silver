@@ -1,1 +1,0 @@
-DJANGO_SETTINGS_MODULE=silverintegration.silverintegration.settings celery -A silverintegration.silverintegration worker -l info -B --uid nginx  --pidfile celery-worker.pid -D -f /opt/sites/dev.billing.dynamicic.com/logs/celery-worker.log
