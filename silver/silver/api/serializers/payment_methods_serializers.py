@@ -72,6 +72,9 @@ class PaymentMethodSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = PaymentMethod
+        # swagger_schema_fields = {
+        #     'operationId': 'zomgbbq',
+        # }
         fields = ('url', 'transactions', 'customer', 'payment_processor_name',
                   'payment_processor', 'added_at', 'verified', 'data',
                   'canceled', 'valid_until', 'display_info')

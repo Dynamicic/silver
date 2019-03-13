@@ -5,7 +5,7 @@ import dotenv
 import antikythera
 
 def main():
-    dotenv.load_dotenv(os.path.join(os.getcwd(), '.env'))
+    dotenv.read_dotenv(os.path.join(os.getcwd(), '.env'))
     sys.path.insert(0, os.path.dirname(__file__))
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "antikythera.antikythera.settings")

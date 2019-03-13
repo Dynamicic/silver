@@ -57,6 +57,7 @@ test.env:
 	cd /code/silver
 	pip install -r requirements/test.txt
 	pip install watchdog
+	pip install pytest-watch
 	touch test.env
 
 test: ## run tests quickly with the default Python
@@ -72,6 +73,9 @@ test: ## run tests quickly with the default Python
     	silver.tests.api.test_metered_feature \
     	silver.tests.unit.test_metered_features \
     	silver.tests.integration.test_subscription_billing_dates
+
+test-watch:
+	ptw --ignore ./env --ignore ./dist
 
 test-all: ## run tests on every Python version with tox
 	tox

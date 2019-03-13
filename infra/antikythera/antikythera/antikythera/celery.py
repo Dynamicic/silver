@@ -4,7 +4,7 @@ from celery import Celery
 import dotenv
 from .hooktask import process_hooks
 
-dotenv.load_dotenv(os.path.join(os.getcwd(), '.env'))
+dotenv.read_dotenv(os.path.join(os.getcwd(), '.env'))
 
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'antikythera.antikythera.settings')

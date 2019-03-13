@@ -92,6 +92,7 @@ def deploy_build():
             run("ls -c1 %s/packages/*.tar.gz | xargs -I {} pip install {}" % env.staging_dir)
 
             # hup(env.target_dir + '/uwsgi.wsgi.pid')
+            # TODO: hup celery also
 
 
 def set_environment(environment_name='dev'):

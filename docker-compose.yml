@@ -7,7 +7,7 @@ volumes:
 #
 services:
 
-  web:
+  web: &CLI_TESTING
     build: . 
     # build + image = tags this image build
     image: "silverwebapp:latest"
@@ -17,6 +17,7 @@ services:
     environment: &WEB_ENVIRONMENT
       # - SILVER_TEST_SHELL=no
 
+      - DJANGO_SETTINGS_MODULE=antikythera.antikythera.settings
       - AUTHORIZE_API_LOGIN=asdf
       - AUTHORIZE_TRANSACTION_KEY=asdf
       - AUTHORIZE_KEY=asdf
@@ -26,9 +27,13 @@ services:
       - ANTIKYTHERA_DB_USER=silver
       - ANTIKYTHERA_DB_PASS=silver
       - ANTIKYTHERA_DB_PORT=3306
+      - ANTIKYTHERA_ALLOWED_HOSTS=web
+
+      # Fernet.generate_key()
+      - ANTIKYTHERA_PAYMENT_METHOD_SECRET=HDn6Y37LsdR61G8Ht91naI_u0RFhv2DpxYRNOP3HB1g
 
       - SILVER_MIGRATE=yes
-      - SILVER_LOAD_DEV_DATA=yes
+      - SILVER_LOAD_DEV_DATA=no
       - SILVER_RUN_TESTS=no
 
       - REDIS_HOST_STRING=redis://redis:6379/0
@@ -47,12 +52,31 @@ services:
       - db
       - celery
 
+  sdk:
+    <<: *CLI_TESTING
+    command: "make test-watch"
+    working_dir: "/code/silversdk"
+
+    depends_on: []
+    # - db
+    # - celery
+    # - web
+
+    ports: []
+
+    volumes: 
+      - ./app/dev_dot_com:/app
+      - ./silver:/code/silver
+      - ./infra/silversdk:/code/silversdk
+      - ./infra/antikythera:/code/antikythera
+      - ./silver-authorize:/code/silver_authorizenet
+
   celery:
     # This is almost exactly the same as `web`
     image: silverwebapp:latest
     # -Q default
-    command: "celery -A silverintegration worker -l info -B"
-    working_dir: "/app/silverintegration"
+    command: "celery -A antikythera.antikythera worker -l info -B"
+    working_dir: "/code/antikythera"
     environment: *WEB_ENVIRONMENT
     volumes: *WEB_VOLUMES
     depends_on:

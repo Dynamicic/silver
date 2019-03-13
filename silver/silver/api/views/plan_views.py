@@ -40,6 +40,13 @@ class PlanDetail(generics.RetrieveDestroyAPIView):
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = PlanSerializer
     model = Plan
+    queryset = Plan.objects.all().prefetch_related('metered_features')
+
+    def get_serializer_class(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return PlanSerializer
+
+        return PlanSerializer
 
     def get_object(self):
         pk = self.kwargs.get('pk', None)
@@ -68,6 +75,22 @@ class PlanMeteredFeatures(generics.ListAPIView):
     serializer_class = MeteredFeatureSerializer
     model = MeteredFeature
 
+    def get_serializer(self):
+
+        if getattr(self, 'swagger_fake_view', False):
+            return False
+
+        return super(PlanMeteredFeatures, self).get_serializer()
+
+
+    def get_serializer_class(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return MeteredFeatureSerializer
+
+        return MeteredFeatureSerializer
+
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return False
         plan = get_object_or_None(Plan, pk=self.kwargs['pk'])
         return plan.metered_features.all() if plan else None

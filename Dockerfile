@@ -50,15 +50,19 @@ RUN set -ex \
     && chown root:root /usr/bin/dockerize
 
 RUN cd /code/silver_authorizenet \
-    && pip3 install --no-cache-dir -e .
+    && python setup.py develop
 
-RUN cd /app \
-    && pip3 install --no-cache-dir /code/docker-scripts/xhtml2pdf.zip
+RUN cd /code/silver \
+    && python setup.py develop
+
+# RUN cd /app \
+#     && pip3 install --no-cache-dir /code/docker-scripts/xhtml2pdf.zip
 
 RUN cd /code/antikythera \
     && python3 setup.py develop
 
 
+COPY ./infra/silversdk /code/silversdk
 VOLUME /code/antikythera/
 
 # CMD ["/docker-entrypoint"]

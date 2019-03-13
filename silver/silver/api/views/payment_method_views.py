@@ -99,6 +99,9 @@ class PaymentMethodDetail(RetrieveUpdateAPIView):
 class PaymentMethodAction(APIView):
     permission_classes = (permissions.IsAuthenticated,)
     allowed_actions = ('cancel', )
+    swagger_schema_fields = {
+        'operationId': 'zomgbbq',
+    }
 
     def post(self, request, *args, **kwargs):
         payment_method = self.get_object(**kwargs)

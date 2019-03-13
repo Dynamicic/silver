@@ -486,12 +486,17 @@ class BillingDocumentBase(models.Model):
             'documents/{provider}/{doc.kind}/{issue_date}/{filename}'
         )
 
+        if self.issue_date is None:
+            issue = None
+        else:
+            issue = self.issue_date.strftime('%Y/%m/%d')
+
         context = {
             'doc': self,
             'filename': self.get_pdf_filename(),
             'provider': self.provider.slug,
             'customer': self.customer.slug,
-            'issue_date': self.issue_date.strftime('%Y/%m/%d')
+            'issue_date': issue
         }
 
         return path_template.format(**context)

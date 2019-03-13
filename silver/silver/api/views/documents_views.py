@@ -389,6 +389,18 @@ class PDFRetrieve(generics.RetrieveAPIView):
     queryset = PDF.objects.all()
     lookup_url_kwarg = 'pdf_pk'
 
+    def get_serializer(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return False
+
+        return super(PDFRetrieve, self).get_serializer()
+
+    def get_serializer_class(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return False
+
+        return super(PDFRetrieve, self).get_serializer_class()
+
     def get(self, *args, **kwargs):
         pdf = self.get_object()
         return HttpResponseRedirect(pdf.url)
