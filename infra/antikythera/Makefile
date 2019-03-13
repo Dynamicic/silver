@@ -55,8 +55,6 @@ lint: ## check style with flake8
 
 test.env: 
 	cd /code/silver
-	pip install -r requirements/test.txt
-	pip install watchdog
 	pip install pytest-watch
 	touch test.env
 
@@ -65,17 +63,18 @@ test: ## run tests quickly with the default Python
     	pytest -vv \
     	--capture=sys \
     	--pyargs \
-    	silver.tests.unit.test_subscription \
-    	silver.tests.integration.test_transactions_overpayments \
-    	silver.tests.integration.test_documents_transactions_hooks \
-    	silver.tests.integration.test_transaction_decline_retries \
-    	silver.tests.integration.test_transactions_overpayments \
-    	silver.tests.api.test_metered_feature \
-    	silver.tests.unit.test_metered_features \
+        silver.tests.unit.test_subscription \
+        silver.tests.integration.test_transactions_overpayments \
+        silver.tests.integration.test_documents_transactions_hooks \
+        silver.tests.integration.test_transaction_decline_retries \
+        silver.tests.integration.test_transactions_overpayments \
+        silver.tests.api.test_metered_feature \
+        silver.tests.unit.test_metered_features \
     	silver.tests.integration.test_subscription_billing_dates
 
+.PHONY: test-watch
 test-watch:
-	ptw --ignore ./env --ignore ./dist
+	ptw --ignore ./env --ignore ./dist --runner "sh tmprunner.sh" 
 
 test-all: ## run tests on every Python version with tox
 	tox

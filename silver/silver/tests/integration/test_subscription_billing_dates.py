@@ -765,7 +765,15 @@ class SubscriptionBillingDates(TestCase):
 
         invoice_issued_assumed = 0
 
-        def process_cycle(cycle_start):
+        # Split the testing interval into two halves.
+
+        first_half  = round(intervals / 2)
+        second_half = round(intervals / 2)
+
+        # Running for first half, where each cycle begins the day
+        # after the last.
+        _start_date = False
+        for cycle_start in range(0, first_half):
             print(" -- cycle -- ")
 
             if not _start_date:
@@ -881,23 +889,132 @@ class SubscriptionBillingDates(TestCase):
             print(" -- cycle end -- ")
             cycle_start = _start_date
 
-        # Split the testing interval into two halves.
 
-        first_half  = round(interval / 2)
-        second_half = round(interval / 2)
-
-        # Running for first half, where each cycle begins the day
-        # after the last.
-        _start_date = False
-        for _st in range(0, first_half):
-            process_cycle(_st)
-
-
+        print("")
+        print(" *** Setting a new date *** ")
         # Perform some modifications to the subscription
+        subscription.cycle_end_override = manual_cycle_end_date
+        subscription.save()
+        print(" ", manual_cycle_end_date)
+        print("")
+        print("")
 
         # Run the remainder and see what happens.
-        for _st in range(0, second_half):
-            process_cycle(_st)
+        for cycle_start in range(0, second_half):
+            print(" -- cycle -- ")
+
+            if not _start_date:
+                cycle_start =  cycle_start_dates
+            else:
+                cycle_start = _start_date + timedelta(days=1)
+
+            end_of_start_month      =  dt.date(cycle_start.year,
+                                               cycle_start.month,
+                                               monthrange(cycle_start.year, cycle_start.month)[1]
+                                               )
+
+            print("  cycle start:      ", cycle_start)
+            print("  cal. month end:   ", end_of_start_month)
+
+            no_invoice_issued_here  = cycle_start + timedelta(days=20)
+            # no_invoice_issued_here  =  dt.date(start_date.year, start_date.month + 1, 3)
+
+            deltawerk = cycle_start + timedelta(days=31)
+
+            day_delta = cycle_start + timedelta(days=3)
+
+            seat_feature_usage_set = cycle_start + timedelta(days=3)
+            feature_usage_start    = cycle_start + timedelta(days=4)
+            feature_usage_end      = cycle_start + timedelta(days=4)
+
+            print("  | feature usage:  ", feature_usage_start)
+            print("  | feature usage:  ", seat_feature_usage_set)
+            print("  | feature usage:  ", feature_usage_end)
+
+            _calc_start =  subscription._cycle_start_date(reference_date=cycle_start,
+                                                          ignore_trial=True,
+                                                          granulate=False)
+
+            _cycle_end = subscription._cycle_end_date(reference_date=cycle_start,
+                                                      ignore_trial=True,
+                                                      granulate=False)
+
+            # new
+            _start_date = _cycle_end
+
+            first_invoice_date      =  _cycle_end + timedelta(days=1)
+
+            print("  no invoice check: ", no_invoice_issued_here)
+            curr_billing_date = first_invoice_date + timedelta(days=1)
+            print("  billing date:     ", curr_billing_date)
+
+            print("  invoice issued:   ", first_invoice_date)
+
+            # No invoices are generated here despite feature usage
+            inv_c = Invoice.objects.all().count()
+            call_command('generate_docs',
+                         date=feature_usage_start,
+                         subscription=subscription.id,
+                         stdout=self.output)
+            assert Invoice.objects.all().count() == inv_c
+
+            # Track some usage
+            mf = MeteredFeatureUnitsLogFactory.create(subscription=subscription,
+                                                 metered_feature=metered_feature,
+                                                 start_date=feature_usage_start,
+                                                 end_date=feature_usage_end,
+                                                 consumed_units=Decimal('20.00'))
+            mf.save()
+
+            # No invoices are generated here because the month hasn't passed
+            inv_c = Invoice.objects.all().count()
+            call_command('generate_docs',
+                         date=end_of_start_month,
+                         subscription=subscription.id,
+                         stdout=self.output)
+            assert Invoice.objects.all().count() == inv_c
+
+
+            # Invoices SHOULD NOT be generated here because the billing
+            # period shouldn't end.
+            inv_c = Invoice.objects.all().count()
+            call_command('generate_docs',
+                         date=no_invoice_issued_here,
+                         subscription=subscription.id,
+                         stdout=self.output)
+            assert Invoice.objects.all().count() == inv_c
+
+            call_command('generate_docs',
+                         date=_cycle_end,
+                         subscription=subscription.id,
+                         stdout=self.output)
+
+            call_command('generate_docs',
+                         date=curr_billing_date,
+                         subscription=subscription.id,
+                         stdout=self.output)
+
+
+            print("  invoice count:     ", Invoice.objects.all().count())
+            invoice = Invoice.objects.all().first()
+            assert invoice != None
+
+            invoice_issued_assumed += 1
+
+            # looks like invoice gets issued at wrong time
+            assert invoice.issue_date == curr_billing_date
+            assert invoice.total >= Decimal(0.0)
+            invoice_pay_date        =  invoice.issue_date + timedelta(days=1)
+            print("  invoice date:     ", invoice.issue_date)
+            assert invoice.issue_date == curr_billing_date
+            invoice.pay(paid_date=invoice_pay_date.strftime("%Y-%m-%d"))
+            invoice.save()
+            print("  invoice pay:      ", invoice_pay_date)
+            print("  invoice amount:   ", invoice.total)
+            print("  calc cycle start: ", _calc_start)
+            print("  calc cycle end:   ", _cycle_end)
+            print(" -- cycle end -- ")
+            cycle_start = _start_date
 
         # hacky debug 
         # assert 1 == 0
@@ -910,7 +1027,11 @@ class SubscriptionBillingDates(TestCase):
         cycle_start_dates       =  dt.date(2018, 1, 31)
 
         # Halfway through this we're going to set a new cycle end date 
-        manual_cycle_end_date   =  dt.date(2018, 7, 20)
+        # NB: the feature only uses the day of this, so really the month
+        # doesn't matter; but including the month that the cycle change
+        # will happen just because.
+        # 
+        manual_cycle_end_date   =  dt.date(2018, 8, 20)
 
         self._test_year_for_interval_split_with_changes(cycle_start_dates,
                                                         manual_cycle_end_date,

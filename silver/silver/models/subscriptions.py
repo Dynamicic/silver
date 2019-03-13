@@ -313,7 +313,12 @@ class Subscription(models.Model):
         if self.plan.interval == self.plan.INTERVALS.MONTH:
             rules['bymonthday'] = 1  # first day of the month
         elif self.plan.interval == self.plan.INTERVALS.MONTHISH:
-            start_d = self.start_date.day
+            # VariableCycleEndDate
+            # 
+            if self.cycle_end_override:
+                start_d = self.cycle_end_override.day
+            else:
+                start_d = self.start_date.day
             # If the start_d is greater than 28 days, the interval needs
             # to generate by the last day, otherwise short months will
             # be excluded from billing.

@@ -15,6 +15,9 @@ when searching for usage billing stats.
 
 Subject to change, but: 
 
+ * Currently only works with MONTHISH billing cycle because that's the one that
+   supports variable start dates.
+
  * `Subscription.cycle_end_override` - default is null.  If a date value is
    actually stored, that will be a manual cycle end and the billing
    calculations will run by that.
