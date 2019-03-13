@@ -168,6 +168,13 @@ class Subscription(models.Model):
         blank=True, null=True,
         help_text='The date when the subscription was canceled.'
     )
+
+    # VariableCycleEndDate
+    cycle_end_override = models.DateField(
+        blank=True, null=True, default=None,
+        help_text='The date when the subscription cycle ends.'
+    )
+
     ended_at = models.DateField(
         blank=True, null=True,
         help_text='The date when the subscription ended.'
@@ -438,6 +445,10 @@ class Subscription(models.Model):
     @property
     def _ignore_trial_end(self):
         return not self.generate_documents_on_trial_end
+
+    @property
+    def cycle_end_reference_date_display(self):
+        return self.cycle_end_date()
 
     def cycle_start_date(self, reference_date=None):
         return self._cycle_start_date(ignore_trial=self._ignore_trial_end,

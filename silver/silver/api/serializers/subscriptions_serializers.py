@@ -71,9 +71,14 @@ class SubscriptionSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Subscription
-        fields = ('id', 'url', 'plan', 'customer', 'trial_end', 'start_date', 'cancel_date',
-                  'ended_at', 'state', 'reference', 'updateable_buckets', 'meta', 'description')
-        read_only_fields = ('state', 'updateable_buckets')
+        # VariableCycleEndDate
+        fields = ('id', 'url', 'plan', 'customer', 'trial_end',
+                  'start_date', 'cancel_date', 'ended_at', 'state',
+                  'reference', 'updateable_buckets', 'meta',
+                  'description', 'cycle_end_reference_date_display')
+
+        read_only_fields = ('state', 'updateable_buckets',
+                            'cycle_end_reference_date_display')
         extra_kwargs = {'customer': {'lookup_url_kwarg': 'customer_pk'}}
 
     def validate(self, attrs):

@@ -202,7 +202,9 @@ class SubscriptionAdmin(ModelAdmin):
     list_display = ['customer', 'plan', 'last_billing_date', 'trial_end',
                     'start_date', 'ended_at', 'state', metadata]
     list_filter = ['plan', 'state', 'plan__provider', 'customer']
-    readonly_fields = ['state', ]
+
+    # VariableCycleEndDate
+    readonly_fields = ['state', 'cycle_end_reference_date_display',]
     actions = ['activate', 'cancel_now', 'cancel_at_end_of_cycle', 'end']
     search_fields = ['customer__first_name', 'customer__last_name',
                      'customer__company', 'plan__name', 'meta']

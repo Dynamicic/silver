@@ -479,14 +479,12 @@ class SubscriptionBillingDates(TestCase):
         assert invoice.issue_date == curr_billing_date
         assert invoice.total >= Decimal(110.0)
 
+
+
     def _test_year_for_interval(self, cycle_start_dates, intervals=12):
         """ Create all the test conditions for a specific date. This
         runs on the specified amount of intervals. To confirm that
         billing documents are issued as specified.
-
-
-        TODO: turn print statements into extra asserts
-
         """
         from dateutil.rrule import rrule, MONTHLY
         from datetime import datetime, timedelta
@@ -651,12 +649,31 @@ class SubscriptionBillingDates(TestCase):
         # assert 1 == 0
 
     @pytest.mark.django_db
+    def test_that_daily_billed_plan_issue_date_carries_for_a_year_from_beg(self):
+        """ Test a scenario out for a year, starting at the beginning of
+        the month.
+
+        """
+        cycle_start_dates       =  dt.date(2018, 1, 1)
+        self._test_year_for_interval(cycle_start_dates)
+
+    @pytest.mark.django_db
     def test_that_daily_billed_plan_issue_date_carries_for_a_year(self):
         """ Test a scenario out for a year, starting in the middle of
         the month.
 
         """
-        self._test_year_for_interval(dt.date(2017, 1, 7))
+        cycle_start_dates       =  dt.date(2018, 1, 7)
+        self._test_year_for_interval(cycle_start_dates)
+
+    @pytest.mark.django_db
+    def test_that_daily_billed_plan_issue_date_carries_for_a_year_end_of_month_26(self):
+        """ Test a scenario out for a year, starting with a date that
+        does not exist in all months: Jan. 26
+        """
+
+        cycle_start_dates       =  dt.date(2018, 1, 26)
+        self._test_year_for_interval(cycle_start_dates)
 
     @pytest.mark.django_db
     def test_that_daily_billed_plan_issue_date_carries_for_a_year_end_of_month_27(self):
@@ -702,3 +719,200 @@ class SubscriptionBillingDates(TestCase):
 
         cycle_start_dates       =  dt.date(2018, 1, 31)
         self._test_year_for_interval(cycle_start_dates)
+
+    def _test_year_for_interval_split_with_changes(self, cycle_start_dates, manual_cycle_end_date, intervals=12):
+        """ Create all the test conditions for a specific date. This
+        runs on the specified amount of intervals. To confirm that
+        billing documents are issued as specified.
+        """
+        from dateutil.rrule import rrule, MONTHLY
+        from datetime import datetime, timedelta
+        from calendar import monthrange
+
+        # Billing by the last day of each month, with a start date that
+        # includes all possible months. (Same basic result)
+
+        # Set up the timescale.
+
+        # These are each month on the same day.
+        # [datetime.datetime(), ...]
+        _intervals = list(rrule(MONTHLY,
+                                count=intervals,
+                                bymonthday=cycle_start_dates.day,
+                                dtstart=cycle_start_dates))
+
+        provider = self.provider
+        customer = self.customer
+
+        seat_feature = self.seat_feature
+        seat_feature.save()
+
+        metered_feature = self.metered_feature
+        metered_feature.save()
+
+        plan = self.plan(metered_features=[metered_feature],
+                         interval_count=1,
+                         interval=Plan.INTERVALS.MONTHISH,
+                         provider=provider,)
+        plan.save()
+
+        # Create the prorated subscription
+        subscription = SubscriptionFactory.create(plan=plan,
+                                                  start_date=cycle_start_dates,
+                                                  customer=customer)
+        subscription.activate()
+        subscription.save()
+
+        invoice_issued_assumed = 0
+
+        def process_cycle(cycle_start):
+            print(" -- cycle -- ")
+
+            if not _start_date:
+                cycle_start =  cycle_start_dates
+            else:
+                cycle_start = _start_date + timedelta(days=1)
+
+            end_of_start_month      =  dt.date(cycle_start.year,
+                                               cycle_start.month,
+                                               monthrange(cycle_start.year, cycle_start.month)[1]
+                                               )
+
+            print("  cycle start:      ", cycle_start)
+            print("  cal. month end:   ", end_of_start_month)
+
+            no_invoice_issued_here  = cycle_start + timedelta(days=20)
+            # no_invoice_issued_here  =  dt.date(start_date.year, start_date.month + 1, 3)
+
+            deltawerk = cycle_start + timedelta(days=31)
+
+            day_delta = cycle_start + timedelta(days=3)
+
+            seat_feature_usage_set = cycle_start + timedelta(days=3)
+            feature_usage_start    = cycle_start + timedelta(days=4)
+            feature_usage_end      = cycle_start + timedelta(days=4)
+
+            print("  | feature usage:  ", feature_usage_start)
+            print("  | feature usage:  ", seat_feature_usage_set)
+            print("  | feature usage:  ", feature_usage_end)
+
+            _calc_start =  subscription._cycle_start_date(reference_date=cycle_start,
+                                                          ignore_trial=True,
+                                                          granulate=False)
+
+            _cycle_end = subscription._cycle_end_date(reference_date=cycle_start,
+                                                      ignore_trial=True,
+                                                      granulate=False)
+
+            # new
+            _start_date = _cycle_end
+
+            first_invoice_date      =  _cycle_end + timedelta(days=1)
+
+            print("  no invoice check: ", no_invoice_issued_here)
+            curr_billing_date = first_invoice_date + timedelta(days=1)
+            print("  billing date:     ", curr_billing_date)
+
+            print("  invoice issued:   ", first_invoice_date)
+
+            # No invoices are generated here despite feature usage
+            inv_c = Invoice.objects.all().count()
+            call_command('generate_docs',
+                         date=feature_usage_start,
+                         subscription=subscription.id,
+                         stdout=self.output)
+            assert Invoice.objects.all().count() == inv_c
+
+            # Track some usage
+            mf = MeteredFeatureUnitsLogFactory.create(subscription=subscription,
+                                                 metered_feature=metered_feature,
+                                                 start_date=feature_usage_start,
+                                                 end_date=feature_usage_end,
+                                                 consumed_units=Decimal('20.00'))
+            mf.save()
+
+            # No invoices are generated here because the month hasn't passed
+            inv_c = Invoice.objects.all().count()
+            call_command('generate_docs',
+                         date=end_of_start_month,
+                         subscription=subscription.id,
+                         stdout=self.output)
+            assert Invoice.objects.all().count() == inv_c
+
+
+            # Invoices SHOULD NOT be generated here because the billing
+            # period shouldn't end.
+            inv_c = Invoice.objects.all().count()
+            call_command('generate_docs',
+                         date=no_invoice_issued_here,
+                         subscription=subscription.id,
+                         stdout=self.output)
+            assert Invoice.objects.all().count() == inv_c
+
+            call_command('generate_docs',
+                         date=_cycle_end,
+                         subscription=subscription.id,
+                         stdout=self.output)
+
+            call_command('generate_docs',
+                         date=curr_billing_date,
+                         subscription=subscription.id,
+                         stdout=self.output)
+
+
+            print("  invoice count:     ", Invoice.objects.all().count())
+            invoice = Invoice.objects.all().first()
+            assert invoice != None
+
+            invoice_issued_assumed += 1
+
+            # looks like invoice gets issued at wrong time
+            assert invoice.issue_date == curr_billing_date
+            assert invoice.total >= Decimal(0.0)
+            invoice_pay_date        =  invoice.issue_date + timedelta(days=1)
+            print("  invoice date:     ", invoice.issue_date)
+            assert invoice.issue_date == curr_billing_date
+            invoice.pay(paid_date=invoice_pay_date.strftime("%Y-%m-%d"))
+            invoice.save()
+            print("  invoice pay:      ", invoice_pay_date)
+            print("  invoice amount:   ", invoice.total)
+            print("  calc cycle start: ", _calc_start)
+            print("  calc cycle end:   ", _cycle_end)
+            print(" -- cycle end -- ")
+            cycle_start = _start_date
+
+        # Split the testing interval into two halves.
+
+        first_half  = round(interval / 2)
+        second_half = round(interval / 2)
+
+        # Running for first half, where each cycle begins the day
+        # after the last.
+        _start_date = False
+        for _st in range(0, first_half):
+            process_cycle(_st)
+
+
+        # Perform some modifications to the subscription
+
+        # Run the remainder and see what happens.
+        for _st in range(0, second_half):
+            process_cycle(_st)
+
+        # hacky debug 
+        # assert 1 == 0
+
+    @pytest.mark.django_db
+    def test_that_mid_plan_date_override_works(self):
+        """ Test that we can override billing cycle end dates.
+        """
+
+        cycle_start_dates       =  dt.date(2018, 1, 31)
+
+        # Halfway through this we're going to set a new cycle end date 
+        manual_cycle_end_date   =  dt.date(2018, 7, 20)
+
+        self._test_year_for_interval_split_with_changes(cycle_start_dates,
+                                                        manual_cycle_end_date,
+                                                        intervals=12)
+
