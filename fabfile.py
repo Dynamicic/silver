@@ -91,7 +91,13 @@ def deploy_build():
             # Install the staged packages.
             run("ls -c1 %s/packages/*.tar.gz | xargs -I {} pip install {}" % env.staging_dir)
 
-            # hup(env.target_dir + '/uwsgi.wsgi.pid')
+            run("antikythera-manage collectstatic --noinput")
+
+def hup_services():
+    set_environment('dev')
+    with cd(env.target_dir):
+        with prefix("source %s/env/bin/activate" % env.target_dir):
+            hup(env.target_dir + '/uwsgi.wsgi.pid')
             # TODO: hup celery also
 
 

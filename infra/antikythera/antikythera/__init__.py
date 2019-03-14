@@ -1,3 +1,4 @@
+__version__ = '0.1.1'
 
 from __future__ import absolute_import, unicode_literals
 
