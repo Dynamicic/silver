@@ -69,11 +69,21 @@ cycle
 
 #### Asshole customer loophole
 
+Situation:
+
 - Add a seat at the beginning of the month, then run a plan and get ridiculous
   levels of overage. 
 - At the last day of the month you add 10 seats to get a ton of included
   minutes and kill overage.
 - Asshole discount
+
+##### Solutions
+
+We need to bill in a manner where seats are a consumable resource, something
+which silver already supports. But this should be taken into account in the
+math for minutes calculated by seats consumed. E.g., if we go with seats
+consumed per day, then there's no room for someone to fudge numbers around to
+get what they want.
 
 #### Prorated functionality
 
