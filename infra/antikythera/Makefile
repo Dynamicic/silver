@@ -53,8 +53,7 @@ clean-test: ## remove test and coverage artifacts
 lint: ## check style with flake8
 	flake8 antikythera tests
 
-test.env: 
-	cd /code/silver
+/tmp/test.env: 
 	pip install watchdog
 	touch test.env
 
@@ -72,12 +71,20 @@ test: ## run tests quickly with the default Python
         silver.tests.unit.test_metered_features \
     	silver.tests.integration.test_subscription_billing_dates
 
+.PHONY: watch-runner
+watch-runner:
+	DJANGO_SETTINGS_MODULE=antikythera.antikythera.settings_test \
+    	pytest -vv \
+    	--capture=sys \
+    	--pyargs \
+        silver.tests.unit.test_metered_features
+
 .PHONY: test-watch
-test-watch:
+test-watch: /tmp/test.env
 	watchmedo shell-command \
 		--patterns="*.py" \
 		--recursive \
-		--command="flock -n antiky.testing.lock sh tmprunner.sh" \
+		--command="flock -n antiky.testing.lock make watch-runner" \
 		antikythera tests /code/silver/silver
 
 test-all: ## run tests on every Python version with tox

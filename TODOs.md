@@ -46,7 +46,7 @@ Questions:
    cycle immediately on that date, or wait until the next? potential for wonky
    behavior.
 
-## split billing cycles
+## split billing cycles / LinkedSubscriptions
 
 prepaid usage on a quarterly or annual basis, but still run recurring billing
 items on a monthly basis. 

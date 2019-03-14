@@ -67,6 +67,7 @@ def print_entries(doc):
         print("--")
 
 @override_settings(PAYMENT_PROCESSORS=PAYMENT_PROCESSORS)
+@pytest.mark.skip
 class TestMeteredFeatures(TestCase):
 
     def __init__(self, *args, **kwargs):
@@ -1070,3 +1071,14 @@ class TestMeteredFeatures(TestCase):
         # One seat is added (=$10), so our total is $90.00
         #
         assert invoice.total == Decimal(90.0)
+
+@override_settings(PAYMENT_PROCESSORS=PAYMENT_PROCESSORS)
+class TestLinkedSubscriptions(TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super(TestLinkedSubscriptions, self).__init__(*args, **kwargs)
+        self.output = StringIO()
+
+    @pytest.mark.django_db
+    def test_horrible_customers(self):
+        assert 1 == 0

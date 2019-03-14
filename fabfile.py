@@ -86,12 +86,30 @@ def deploy_build():
 
     # `prepare_deploy` has been run.
     with cd(env.target_dir):
+        maintenance_on()
         run('rm -rf env && virtualenv -p python3.6 env')
         with prefix("source %s/env/bin/activate" % env.target_dir):
             # Install the staged packages.
             run("ls -c1 %s/packages/*.tar.gz | xargs -I {} pip install {}" % env.staging_dir)
 
             run("antikythera-manage collectstatic --noinput")
+        maintenance_off()
+
+def maintenance_on():
+    set_environment('dev')
+    with cd(env.target_dir):
+        run('touch maintenance')
+
+def maintenance_off():
+    set_environment('dev')
+    with cd(env.target_dir):
+        run('rm maintenance')
+
+def prod_migrations():
+    set_environment('dev')
+    with cd(env.target_dir):
+        with prefix("source %s/env/bin/activate" % env.target_dir):
+            run("antikythera-manage migrate --noinput")
 
 def hup_services():
     set_environment('dev')
