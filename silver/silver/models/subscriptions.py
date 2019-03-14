@@ -313,12 +313,24 @@ class Subscription(models.Model):
         if self.plan.interval == self.plan.INTERVALS.MONTH:
             rules['bymonthday'] = 1  # first day of the month
         elif self.plan.interval == self.plan.INTERVALS.MONTHISH:
+            start_d = self.start_date.day
+
             # VariableCycleEndDate
-            # 
-            if self.cycle_end_override:
-                start_d = self.cycle_end_override.day
-            else:
-                start_d = self.start_date.day
+            if self.last_billing_log:
+                # Set the start date to be one day after the
+                # last billing log logging period entry
+                # 
+                _c = self.last_billing_log.plan_billed_up_to + timedelta(days=1)
+                start_d = _c.day
+
+                # Our last cycle override has been used and expired so
+                # we need to unset it.
+                if self.cycle_end_override:
+                    _buffer = self.last_billing_log.plan_billed_up_to + timedelta(days=2)
+                    if self.cycle_end_override <= _buffer:
+                        self.cycle_end_override = None
+                        self.save()
+
             # If the start_d is greater than 28 days, the interval needs
             # to generate by the last day, otherwise short months will
             # be excluded from billing.
@@ -405,14 +417,47 @@ class Subscription(models.Model):
             reference_cycle_start_date = self._cycle_start_date(maximum_cycle_end_date,
                                                                 ignore_trial, granulate)
 
-            if (self.plan.interval == self.plan.INTERVALS.MONTHISH) \
-               and reference_cycle_start_date.day >= 27:
-                # need to check if start date in current month exists?
-                # perhaps not 
-                return maximum_cycle_end_date
+            if (self.plan.interval == self.plan.INTERVALS.MONTHISH):
+                # VariableCycleEndDate
+                # 
+                # TODO: need to disallow setting the cycle if the
+                # date is in no way connected to the current cycle,
+                # otherwise problems will happen.
+                if self.cycle_end_override:
+                    # We have an override, so we need to provide a new
+                    # calculatd maximum_cycle_end_date, and then unset
+                    # the override on the next save.
+                    adjusted_maximum_end = self.cycle_end_override
+
+                    # we haven't reached the extension yet
+                    # 
+                    if adjusted_maximum_end >= reference_date:
+                        # The adjusted date should also be after the current
+                        # calculated billing cycle end date, if it is before
+                        # things break.
+                        # 
+                        if adjusted_maximum_end > maximum_cycle_end_date:
+                            return adjusted_maximum_end
+                        elif adjusted_maximum_end < maximum_cycle_end_date:
+                            # The override is before the calculated cycle
+                            # end date, so we just need to unset it because
+                            # it was wrong.
+                            if self.cycle_end_override:
+                                if self.cycle_end_override > reference_date:
+                                    self.cycle_end_override = None
+                                    self.save()
+                            return maximum_cycle_end_date
+
+                if reference_cycle_start_date.day >= 27:
+                    # need to check if start date in current month exists?
+                    # perhaps not 
+                    return maximum_cycle_end_date
+
             # it means the cycle end_date we got is the right one
+            #
             if reference_cycle_start_date == real_cycle_start_date:
                 return min(maximum_cycle_end_date, (self.ended_at or datetime.max.date()))
+
             elif reference_cycle_start_date < real_cycle_start_date:
                 # This should never happen in normal conditions, but it may stop infinite looping
                 return None

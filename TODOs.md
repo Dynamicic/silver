@@ -11,6 +11,16 @@ need to store this not only for reference but because sometimes it needs to be
 altered, and we cannot alter the cycle start date because this would omit days
 when searching for usage billing stats.
 
+### Use case:
+
+ - grumpy customer is mad about something, sales offers to push billing cycle
+   back a few days to make them happy and save them some cash.
+
+ - next cycle calculated off of this new date, but we can't alter the start
+   date or cycle start date
+
+ - push billing cycle back 5 days to credit, extra free days etc
+ 
 ### Implementation doc
 
 Subject to change, but: 
@@ -26,23 +36,59 @@ Subject to change, but:
    displays the next cycle end day no matter what `cycle_end_reference` is set
    to.
 
+ * Once the cycle end override has been used up/passed, and a little buffer
+   period has passed, the cycle end override will be unset in the database
+   because billing cycles will be running off of a new cycle end date.
+
 Questions:
 
  * What behavior do we want if mid-cycle, we set a new end date. Finish the
    cycle immediately on that date, or wait until the next? potential for wonky
    behavior.
 
-## billing cycles
+## split billing cycles
 
 prepaid usage on a quarterly or annual basis, but still run recurring billing
-items on a monthly basis. possibly allowing related metered features across
+items on a monthly basis. 
+
+possibly allowing related metered features across
 different subscriptions?
 
-ex.:
+### Use cases
 
 sub 1 (annual cycle): predictive seats monthly recurring fees
 sub 2 (monthly cycle): talk time minutes, DID fees (which may have included
 free units based on quantities in subscription #1)
+
+- seats yearly, usage monthly, but monthly allowance needs to be represented on
+  the monthly basis 
+
+prorated vs usage billing, customers can add seats in the middle of the month,
+or remove seats; but reduction shouldn’t take effect until next monthly billing
+cycle 
+
+#### Asshole customer loophole
+
+- Add a seat at the beginning of the month, then run a plan and get ridiculous
+  levels of overage. 
+- At the last day of the month you add 10 seats to get a ton of included
+  minutes and kill overage.
+- Asshole discount
+
+#### Prorated functionality
+
+Need to prorate included minutes somehow, if customers add a seat in the middle
+of the month they only get half of the included minutes just for that billing
+cycle.
+
+### Implementation notes
+
+Going to use two separate plans for this but link and calculate minutes by the
+seat feature of a linked subscription.
+
+TODO: determine if the proration in silver can handle some of this
+automatically
+
 
 # later
 

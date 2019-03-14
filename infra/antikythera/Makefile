@@ -55,7 +55,7 @@ lint: ## check style with flake8
 
 test.env: 
 	cd /code/silver
-	pip install pytest-watch
+	pip install watchdog
 	touch test.env
 
 test: ## run tests quickly with the default Python
@@ -74,7 +74,11 @@ test: ## run tests quickly with the default Python
 
 .PHONY: test-watch
 test-watch:
-	ptw --ignore ./env --ignore ./dist --runner "sh tmprunner.sh" 
+	watchmedo shell-command \
+		--patterns="*.py" \
+		--recursive \
+		--command="flock -n antiky.testing.lock sh tmprunner.sh" \
+		antikythera tests /code/silver/silver
 
 test-all: ## run tests on every Python version with tox
 	tox

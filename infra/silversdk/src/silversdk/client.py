@@ -98,6 +98,9 @@ class APIShortcuts(object):
     def __init__(self, client):
         self.client = client
 
+    def model(self, m):
+        return self.client.get_model(m)
+
     def create_one_off_transaction(self, *args, **kwargs):
         """ A shortcut for creating a one-off invoice. This creates a
         customer, a payment method, a new invoice and a transaction.
@@ -109,6 +112,10 @@ class APIShortcuts(object):
          * issue the invoice
          * return the customer, invoice, and transactions
 
+        TODO: this whole method should probably just be moved into the
+        silver backend, it's already complex enough, so may as well keep
+        this all to one request from the client's side rather than
+        numerous requests that depend on eachother.
         """
 
         kleint = self.client
@@ -124,7 +131,7 @@ class APIShortcuts(object):
         new_customer = customer_one_off_defaults
         new_customer.update(**kwargs.get('customer'))
 
-        Customer = self.client.get_model('Customer')
+        Customer = self.model('Customer')
 
         if 'meta' in new_customer:
             new_customer['meta'] = json.dumps(new_customer.get('meta'))
@@ -154,7 +161,7 @@ class APIShortcuts(object):
                 "stop_retry_attempts": 5
             })
         }
-        PaymentMethod = self.client.get_model('PaymentMethod')
+        PaymentMethod = self.model('PaymentMethod')
         new_pm = PaymentMethod(**customer_default_payment_method)
         # new_pm.customer = str(customer_id)
         pm_endpoint = kleint.customers.customers_payment_methods_create
@@ -171,7 +178,7 @@ class APIShortcuts(object):
         ## Create an invoice
         # Some defaults to save effort from the client user
         # 
-        Invoice = self.client.get_model('Invoice')
+        Invoice = self.model('Invoice')
 
         invoice_one_off_defaults = {
             "provider": provider.url,
