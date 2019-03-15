@@ -43,6 +43,7 @@ from django.utils.translation import ugettext_lazy as _
 from silver.models.billing_entities import Customer
 from silver.models.documents import DocumentEntry
 from silver.utils.dates import ONE_DAY, relativedelta, first_day_of_month
+from silver.utils.models import UnsavedForeignKey
 from silver.validators import validate_reference
 
 
@@ -189,6 +190,10 @@ class Subscription(models.Model):
     )
     meta = JSONField(blank=True, null=True, default={})
 
+    linked_subscription = UnsavedForeignKey(
+        'self', null=True, blank=True, help_text="A related subscription, allowing for calculating linked feature totals."
+    )
+
     def _get_included_units_calc(self, metered_feature,
                                  proration_percent, start_date,
                                  end_date):
@@ -196,8 +201,13 @@ class Subscription(models.Model):
 
         if metered_feature.linked_feature is not None:
 
+            sub = self
+
+            if self.linked_subscription is not None:
+                sub = self.linked_subscription
+
             # Get the latest consumed total as of now.
-            consumed_link = self._get_consumed_units(
+            consumed_link = sub._get_consumed_units(
                 metered_feature.linked_feature,
                 proration_percent,
                 start_date,

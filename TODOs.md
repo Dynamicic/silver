@@ -99,6 +99,10 @@ seat feature of a linked subscription.
 TODO: determine if the proration in silver can handle some of this
 automatically
 
+TODO: fix proration - it looks like the MONTHLYISH setting may break
+subscription proration calculations, since proration stuff assumes that monthly
+periods are pinned to calendar months.
+
 
 # later
 
