@@ -50,26 +50,25 @@ services:
 
     depends_on:
       - db
-      - celery
 
-  sdk:
-    <<: *CLI_TESTING
-    command: "make test-watch"
-    working_dir: "/code/silversdk"
+  ### sdk:
+  ###   <<: *CLI_TESTING
+  ###   command: "make test-watch"
+  ###   working_dir: "/code/silversdk"
 
-    depends_on: []
-    # - db
-    # - celery
-    # - web
+  ###   depends_on: []
+  ###   # - db
+  ###   # - celery
+  ###   # - web
 
-    ports: []
+  ###   ports: []
 
-    volumes: 
-      - ./app/dev_dot_com:/app
-      - ./silver:/code/silver
-      - ./infra/silversdk:/code/silversdk
-      - ./infra/antikythera:/code/antikythera
-      - ./silver-authorize:/code/silver_authorizenet
+  ###   volumes: 
+  ###     - ./app/dev_dot_com:/app
+  ###     - ./silver:/code/silver
+  ###     - ./infra/silversdk:/code/silversdk
+  ###     - ./infra/antikythera:/code/antikythera
+  ###     - ./silver-authorize:/code/silver_authorizenet
 
   celery:
     # This is almost exactly the same as `web`
@@ -82,6 +81,7 @@ services:
     depends_on:
       - db
       - redis
+      - web
 
   db:
     image: "nimmis/alpine-mariadb"

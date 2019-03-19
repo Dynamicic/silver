@@ -190,6 +190,7 @@ class Subscription(models.Model):
     )
     meta = JSONField(blank=True, null=True, default={})
 
+    # LinkedSubscriptions
     linked_subscription = UnsavedForeignKey(
         'self', null=True, blank=True, help_text="A related subscription, allowing for calculating linked feature totals."
     )

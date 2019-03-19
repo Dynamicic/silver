@@ -48,11 +48,11 @@ Questions:
 
 ## split billing cycles / LinkedSubscriptions
 
-prepaid usage on a quarterly or annual basis, but still run recurring billing
-items on a monthly basis. 
+This feature is enabled on the Subscription level, and allows the linking of
+Subscriptions that are dependent on eachother for billing calculations.
 
-possibly allowing related metered features across
-different subscriptions?
+TODO: do we want to duplicate billing entry items on a subscription that is
+linked?
 
 ### Use cases
 
