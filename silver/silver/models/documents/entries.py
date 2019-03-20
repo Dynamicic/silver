@@ -103,11 +103,13 @@ class DocumentEntry(models.Model):
         )
 
     def __str__(self):
-        s = u'{descr} - {product_code} - {unit_price}/{unit} - used {quantity} {unit}'
+        s = u'{descr} - {product_code} - ${unit_price}/{unit} - used {quantity} {unit} - {start} -> {end}'
         return s.format(
             descr=self.description,
             unit=self.unit,
             unit_price=self.unit_price,
             quantity=self.quantity,
-            product_code=self.product_code
+            product_code=self.product_code,
+            start=self.start_date,
+            end=self.end_date,
         )

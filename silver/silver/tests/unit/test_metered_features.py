@@ -1336,6 +1336,7 @@ class TestLinkedSubscriptions(TestCase):
         assert char_invoice.total == Decimal(10.0)
 
     @pytest.mark.django_db
+    @pytest.mark.skip
     def test_linked_subscriptions_with_seat_interval_changes(self):
         """ Follow the plan structure of above, but with extra steps to
         increment seats upwards after the first round of billing to
