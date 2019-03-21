@@ -60,8 +60,10 @@ class Plan(models.Model):
         choices=INTERVAL_CHOICES, max_length=12, default=INTERVALS.MONTH,
         help_text='The frequency with which a subscription should be billed.'
     )
+    # NB: having a value of 0 will break rrule in most instances
     interval_count = models.PositiveIntegerField(
-        help_text='The number of intervals between each subscription billing'
+        help_text='The number of intervals between each subscription billing',
+        validators=[MinValueValidator(1.0)],
     )
     amount = models.DecimalField(
         max_digits=19, decimal_places=4, validators=[MinValueValidator(0.0)],

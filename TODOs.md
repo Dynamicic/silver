@@ -51,12 +51,8 @@ Questions:
 This feature is enabled on the Subscription level, and allows the linking of
 Subscriptions that are dependent on eachother for billing calculations.
 
-TODO: the proration calculation function in
-`Subscription._get_proration_status_and_percent` is misbehaving, need to fix
-and also write out some unit tests since those never existed to begin with.
-Function is currently not sensitive to the plan's billing duration, but it only
-works properly on the scale of the month, it is broken for yearly plans and all
-others.
+TODO: add stuff for `Subscription._get_proration_status_and_percent` on
+remaining intervals (DAY and WEEK), and write out unit tests for those two too.
 
 TODO: do we want to duplicate billing entry items on a subscription that is
   linked?

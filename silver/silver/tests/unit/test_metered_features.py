@@ -204,6 +204,77 @@ class TestMeteredFeatures(TestCase):
         assert _metered.count() == 1
 
     @pytest.mark.django_db
+    def test_interval_validation_fix(self):
+        """ Discovered that it's possible to trigger a bug in
+        rrule.rrule where the generator runs indefinitely and never
+        exits, by setting the interval count to 0. This tests a couple
+        kinds of validation to ensure that doesn't happen. """
+
+        # Set up the timescale.
+        start_date        = dt.date(2018, 1, 1)
+        prev_billing_date = generate_docs_date('2018-01-01')
+        curr_billing_date = generate_docs_date('2018-02-01')
+
+        seat_feature_usage_set = dt.date(2018, 1, 13)
+        feature_usage_start    = dt.date(2018, 1, 15)
+        feature_usage_end      = dt.date(2018, 1, 16)
+
+        customer = CustomerFactory.create(consolidated_billing=False,
+                                          sales_tax_percent=Decimal('0.00'))
+        currency = 'USD'
+
+        seat_price = Decimal('0.0')
+        seat_feature = MeteredFeatureFactory(
+            name="Charcoal Users",
+            unit="Seats",
+            included_units=Decimal('0.00'),
+            price_per_unit=seat_price)
+
+        mf_price = Decimal('5.00')
+        metered_feature = MeteredFeatureFactory(name="Charcoal Base Units",
+                                                unit="Barrels (per seat)",
+                                                # linked_feature=seat_feature,
+                                                # included_units_calculation="multiply",
+                                                included_units=Decimal('20.00'),
+                                                price_per_unit=mf_price,)
+
+        plan = PlanFactory.create(interval=Plan.INTERVALS.MONTH,
+                                  interval_count=0,
+                                  generate_after=1,
+                                  enabled=True,
+                                  amount=Decimal('0.00'),
+                                  currency=currency,
+                                  trial_period_days=0,
+                                  metered_features=[seat_feature, metered_feature])
+
+        # Create the prorated subscription
+        subscription = SubscriptionFactory.create(plan=plan,
+                                                  start_date=start_date,
+                                                  customer=customer)
+        subscription.activate()
+        subscription.save()
+
+        try:
+            call_command('generate_docs',
+                         date=curr_billing_date,
+                         stdout=self.output)
+        except Exception as e:
+            if 'interval_count' in str(e):
+                pass
+            else:
+                raise e
+
+        plan = PlanFactory.create(interval=Plan.INTERVALS.MONTH,
+                                  interval_count=0,
+                                  generate_after=1,
+                                  enabled=True,
+                                  amount=Decimal('0.00'),
+                                  currency=currency,
+                                  trial_period_days=0,
+                                  metered_features=[seat_feature, metered_feature])
+        plan.save()
+
+    @pytest.mark.django_db
     @pytest.mark.skip
     def test_prorated_subscription_with_consumed_mfs_overflow(self):
         """ Test that stuff doesn't break because of the new features.
@@ -239,7 +310,7 @@ class TestMeteredFeatures(TestCase):
                                                 price_per_unit=mf_price,)
 
         plan = PlanFactory.create(interval=Plan.INTERVALS.MONTH,
-                                  interval_count=0,
+                                  interval_count=1,
                                   generate_after=1,
                                   enabled=True,
                                   amount=Decimal('0.00'),
@@ -1336,7 +1407,6 @@ class TestLinkedSubscriptions(TestCase):
         assert char_invoice.total == Decimal(10.0)
 
     @pytest.mark.django_db
-    @pytest.mark.skip
     def test_linked_subscriptions_with_seat_interval_changes(self):
         """ Follow the plan structure of above, but with extra steps to
         increment seats upwards after the first round of billing to
@@ -1570,8 +1640,6 @@ class TestLinkedSubscriptions(TestCase):
         #         continue
         #     print(i.total)
         #     print_entries(i)
-
-        assert 1 == 0
 
         # yearly plan --
         #   cost per seat: $10/seat

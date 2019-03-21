@@ -289,6 +289,9 @@ class Subscription(models.Model):
 
         relative_start_date = range_start if aligned_start_date > range_end else aligned_start_date
 
+        if interval_count == 0:
+            raise Exception("Plan.interval_count cannot be 0.")
+
         # SetBillingDates
         dates = list(
             rrule.rrule(interval_type,
