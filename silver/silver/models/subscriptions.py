@@ -1036,9 +1036,6 @@ class Subscription(models.Model):
 
         # Get the plan's prorated value
         plan_price = self.plan.amount * percent
-        print("_add_plan_value: %f * %f = %f" % (self.plan.amount, percent, plan_price))
-        print(" plan start:    ", start_date)
-        print(" plan end:      ", end_date)
 
         unit = self._entry_unit(context)
 
@@ -1170,28 +1167,105 @@ class Subscription(models.Model):
         #   will also be relevant for metered features associated with
         #   the plan.
 
-        first_day_of_month = date(start_date.year, start_date.month, 1)
-        last_day_index = calendar.monthrange(start_date.year,
-                                             start_date.month)[1]
-        last_day_of_month = date(start_date.year, start_date.month,
-                                 last_day_index)
+        # TODO: 
+        #  INTERVALS.DAY
+        #  INTERVALS.WEEK
 
-        if start_date == first_day_of_month and end_date == last_day_of_month:
-            return False, Decimal('1.0000')
+        if self.plan.interval == self.plan.INTERVALS.MONTH:
+            first_day_of_interval = date(start_date.year, start_date.month, 1)
+            last_day_index = calendar.monthrange(start_date.year,
+                                                 start_date.month)[1]
+            last_day_of_interval = date(start_date.year, start_date.month,
+                                     last_day_index)
+
+            logger.debug("_get_proration_status_and_percent: ")
+            logger.debug("               first_day_of_interval: ", first_day_of_interval)
+            logger.debug("                last_day_of_interval: ", last_day_of_interval)
+            logger.debug("                      last_day_index: ", last_day_index)
+
+            if start_date == first_day_of_interval and end_date == last_day_of_interval:
+                return False, Decimal('1.0000')
+            else:
+                logger.debug("                last_day_of_interval: ", last_day_of_interval)
+                logger.debug("               first_day_of_interval: ", first_day_of_interval)
+                days_in_full_interval = \
+                    (last_day_of_interval - first_day_of_interval).days + 1
+                days_in_interval = (end_date - start_date).days + 1
+                _percent = 1.0 * (days_in_interval / days_in_full_interval)
+                percent = Decimal(_percent).quantize(Decimal('0.0000'))
+                logger.debug(
+                    "_get_proration_status_and_percent: %f / %f = %f" \
+                    % (days_in_interval, days_in_full_interval, _percent)
+                )
+
+                return True, percent
+
+        elif self.plan.interval == self.plan.INTERVALS.YEAR:
+            first_day_of_interval = date(start_date.year,
+                                         start_date.month,
+                                         start_date.day,)
+
+            last_day_of_interval = date(start_date.year + 1,
+                                        start_date.month,
+                                        start_date.day)
+
+            logger.debug("_get_proration_status_and_percent: ")
+            logger.debug("               first_day_of_interval: ", first_day_of_interval)
+            logger.debug("                last_day_of_interval: ", last_day_of_interval)
+
+            if start_date == first_day_of_interval and end_date == last_day_of_interval:
+                return False, Decimal('1.0000')
+            else:
+                days_in_full_interval = \
+                    (last_day_of_interval - first_day_of_interval).days
+                days_in_interval = (end_date - start_date).days + 1
+                _percent = 1.0 * (days_in_interval / days_in_full_interval)
+                percent = Decimal(_percent).quantize(Decimal('0.0000'))
+
+                logger.debug("               days_in_full_interval: ", days_in_full_interval)
+                logger.debug("                    days_in_interval: ", days_in_interval)
+                logger.debug(
+                    "_get_proration_status_and_percent: %f / %f = %f" \
+                    % (days_in_interval, days_in_full_interval, _percent)
+                )
+
+                return True, percent
+
+        elif self.plan.interval == self.plan.INTERVALS.MONTHISH:
+            first_day_of_interval = date(start_date.year,
+                                         start_date.month,
+                                         start_date.day)
+            last_day_index = calendar.monthrange(start_date.year,
+                                                 start_date.month)[1]
+            last_day_of_interval = date(start_date.year,
+                                        start_date.month + 1,
+                                        start_date.day)
+
+            logger.debug("_get_proration_status_and_percent: ")
+            logger.debug("               first_day_of_interval: ", first_day_of_interval)
+            logger.debug("                last_day_of_interval: ", last_day_of_interval)
+            logger.debug("                      last_day_index: ", last_day_index)
+
+            if start_date == first_day_of_interval and end_date == last_day_of_interval:
+                return False, Decimal('1.0000')
+            else:
+                logger.debug("                last_day_of_interval: ", last_day_of_interval)
+                logger.debug("               first_day_of_interval: ", first_day_of_interval)
+                days_in_full_interval = \
+                    (last_day_of_interval - first_day_of_interval).days
+                days_in_interval = (end_date - start_date).days
+                _percent = 1.0 * (days_in_interval / days_in_full_interval)
+                percent = Decimal(_percent).quantize(Decimal('0.0000'))
+                logger.debug(
+                    "_get_proration_status_and_percent: %f / %f = %f" \
+                    % (days_in_interval, days_in_full_interval, _percent)
+                )
+
+                return True, percent
+
         else:
-            print("_get_proration_status_and_percent: ")
-            print("                last_day_of_month: ", last_day_of_month)
-            print("               first_day_of_month: ", first_day_of_month)
-            days_in_full_interval = (last_day_of_month - first_day_of_month).days + 1
-            days_in_interval = (end_date - start_date).days + 1
-            _percent = 1.0 * (days_in_interval / days_in_full_interval)
-            percent = Decimal(_percent).quantize(Decimal('0.0000')) / 10
-            print(
-                "_get_proration_status_and_percent: %f / %f = %f => %f" \
-                % (days_in_interval, days_in_full_interval, _percent, percent)
-            )
+            raise NotImplementedError
 
-            return True, percent
 
     def _entry_unit(self, context):
         unit_template_path = field_template_path(

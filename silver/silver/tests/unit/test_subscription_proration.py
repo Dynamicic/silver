@@ -127,53 +127,107 @@ class TestSubscriptionProrationCalculation(TestCase):
         from django.db.models import Q
 
         # Set up the timescale.
-        start_date        = dt.date(2018, 1, 1)
-        end_date        = dt.date(2018, 1, 15)
-        self.create_basic_plan(start_date, end_date)
+        # Using november because that is happily divisible.
+        start_date        = dt.date(2018, 11, 1)
+        end_date        = dt.date(2018, 11, 15)
+        interval        = Plan.INTERVALS.MONTH
+        self.create_basic_plan(start_date, end_date, interval)
 
-        is_pro, pro_amt = self.subscription._get_proration_status_and_percent(start_date, end_date)
-        assert pro_amt == 1.00
+        is_pro, pro_amt = self.subscription._get_proration_status_and_percent(start_date,
+                                                                              end_date)
+        assert pro_amt == .50
 
     @pytest.mark.django_db
-    def test_yearly_proration_percent(self):
+    def test_half_monthish_proration(self):
         from django.db.models import Q
 
         # Set up the timescale.
-        start_date        = dt.date(2018, 1, 1)
-        end_date        = dt.date(2018, 12, 31)
-        self.create_basic_plan(start_date, end_date)
+        # November is easily divisble by two. 
+        # 
+        # All these options should result in 50% proration, regardless
+        # of where in the month they fall.
+        start_date = dt.date(2018, 11, 15)
+        end_date   = dt.date(2018, 11, 30)
+        interval   = Plan.INTERVALS.MONTHISH
 
-        is_pro, pro_amt = self.subscription._get_proration_status_and_percent(start_date, end_date)
+        self.create_basic_plan(start_date, end_date, interval)
+
+        is_pro, pro_amt = self.subscription._get_proration_status_and_percent(start_date,
+                                                                              end_date)
+        assert pro_amt == .50
+
+        start_date      = dt.date(2018, 11, 10)
+        end_date        = dt.date(2018, 11, 25)
+        is_pro, pro_amt = self.subscription._get_proration_status_and_percent(start_date,
+                                                                              end_date)
+        assert pro_amt == .50
+
+        # Also we can span over months.
+        start_date      = dt.date(2018, 11, 20)
+        end_date        = dt.date(2018, 12, 5)
+        is_pro, pro_amt = self.subscription._get_proration_status_and_percent(start_date,
+                                                                              end_date)
+        assert pro_amt == .50
+
+    @pytest.mark.django_db
+    def test_yearly_proration_percent_full_year(self):
+        from django.db.models import Q
+
+        # Set up the timescale.
+        start_date = dt.date(2018, 1, 1)
+        end_date   = dt.date(2018, 12, 31)
+        interval   = Plan.INTERVALS.YEAR
+
+        self.create_basic_plan(start_date, end_date, interval)
+
+        is_pro, pro_amt = self.subscription._get_proration_status_and_percent(start_date,
+                                                                              end_date)
         assert pro_amt == 1.00
+
+    @pytest.mark.django_db
+    def test_yearly_proration_percent_less(self):
+        # Set up the timescale.
+        start_date = dt.date(2018, 1, 1)
+        end_date   = dt.date(2018, 12, 30)
+        interval   = Plan.INTERVALS.YEAR
+
+        self.create_basic_plan(start_date, end_date, interval)
+
+        is_pro, pro_amt = self.subscription._get_proration_status_and_percent(start_date,
+                                                                              end_date)
+        assert .99 < pro_amt < 1.0
 
     @pytest.mark.django_db
     def test_half_year(self):
         from django.db.models import Q
 
         # Set up the timescale.
-        start_date        = dt.date(2018, 1, 1)
-        end_date        = dt.date(2018, 6, 1)
-        self.create_basic_plan(start_date, end_date)
+        start_date = dt.date(2018, 1, 1)
+        end_date   = dt.date(2018, 7, 1)
+        interval   = Plan.INTERVALS.YEAR
 
-        is_pro, pro_amt = self.subscription._get_proration_status_and_percent(start_date, end_date)
-        assert pro_amt == .50
+        self.create_basic_plan(start_date, end_date, interval)
+
+        is_pro, pro_amt = self.subscription._get_proration_status_and_percent(start_date,
+                                                                              end_date)
+
+        assert .49 < pro_amt and pro_amt < .50
 
     @pytest.mark.django_db
-    @pytest.mark.skip
     def test_subscription_yearly_proration_isnt_borked(self):
         from django.db.models import Q
 
         # Set up the timescale.
-        start_date        = dt.date(2018, 1, 1)
-        end_date        = dt.date(2018, 12, 31)
+        start_date         = dt.date(2018, 1, 1)
+        end_date           = dt.date(2018, 12, 31)
         first_billing_date = generate_docs_date('2018-01-01')
-        end_billing_date  = generate_docs_date('2019-12-31')
+        end_billing_date   = generate_docs_date('2019-12-31')
 
-        feature_usage_set = dt.date(2018, 1, 1)
-        fst_feature_usage_start    = dt.date(2018, 1, 2)
-        snd_feature_usage_end      = dt.date(2018, 1, 30)
+        feature_usage_set       = dt.date(2018, 1, 1)
+        fst_feature_usage_start = dt.date(2018, 1, 2)
+        snd_feature_usage_end   = dt.date(2018, 1, 30)
 
-        feature_increment  = dt.date(2018, 3, 1)
+        feature_increment       = dt.date(2018, 3, 1)
         snd_feature_usage_start = dt.date(2018, 3, 2)
         snd_feature_usage_end   = dt.date(2018, 3, 30)
 
@@ -224,18 +278,7 @@ class TestSubscriptionProrationCalculation(TestCase):
         year_invoice  = Invoice.objects.first()
         print_entries(year_invoice)
 
-        for e in year_invoice.invoice_entries.all():
-            # Cumulatively we used 5 seats over the course
-            if e.product_code == code:
-                assert e.quantity == Decimal(5.0)
+        # Final year total should be 10 for the whole base plan.
+        assert year_invoice.total == Decimal(10.0)
 
-        # Final year total should be 10 for the whole base plan, and
-        # 5*10 for consumed units.
-        assert year_invoice.total == Decimal(10.0) + Decimal(5*10.0)
-
-        assert 1 == 0
-
-        # yearly plan --
-        #   cost per seat: $10/seat
-        #   used: 5
 

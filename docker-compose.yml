@@ -2,9 +2,6 @@ version: '3'
 volumes:
   db_data:
 
-# TODO: dockerize doesn't always get all code changes
-# NB: this doesn't actually run out of uwsgi and nginx
-#
 services:
 
   web: &CLI_TESTING
@@ -47,6 +44,7 @@ services:
       - ./silver:/code/silver
       - ./infra/antikythera:/code/antikythera
       - ./silver-authorize:/code/silver_authorizenet
+      - ./infra/silversdk:/code/silversdk
 
     depends_on:
       - db
