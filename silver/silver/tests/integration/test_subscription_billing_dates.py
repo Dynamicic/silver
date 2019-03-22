@@ -433,7 +433,7 @@ class SubscriptionBillingDates(TestCase):
         invoice = Invoice.objects.all().first()
 
         assert invoice.issue_date == curr_billing_date
-        assert invoice.total >= Decimal(110.0)
+        assert Decimal(109.00) <= invoice.total <= Decimal(110.0)
         invoice.pay(paid_date='2018-02-09')
         invoice.save()
 
@@ -477,7 +477,7 @@ class SubscriptionBillingDates(TestCase):
 
         assert subscription.state == Subscription.STATES.ACTIVE
         assert invoice.issue_date == curr_billing_date
-        assert invoice.total >= Decimal(110.0)
+        assert Decimal(109.00) <= invoice.total <= Decimal(110.0)
 
 
     def _test_year_for_interval(self, cycle_start_dates, intervals=12):

@@ -350,9 +350,9 @@ class Subscription(models.Model):
             # be excluded from billing.
             # DOC: https://dateutil.readthedocs.io/en/stable/rrule.html
             #
-            if start_d >= 28:
+            if start_d > 28:
                 # if month day > 28 also?
-                if reference_date.day >= 28:
+                if reference_date.day > 28:
                     _bymonthday = 28
                 else:
                     _bymonthday = start_d
@@ -462,7 +462,7 @@ class Subscription(models.Model):
                                     self.save()
                             return maximum_cycle_end_date
 
-                if reference_cycle_start_date.day >= 27:
+                if reference_cycle_start_date.day > 28:
                     # need to check if start date in current month exists?
                     # perhaps not 
                     return maximum_cycle_end_date
@@ -1170,10 +1170,6 @@ class Subscription(models.Model):
         #   will also be relevant for metered features associated with
         #   the plan.
 
-        # TODO: 
-        #  INTERVALS.DAY
-        #  INTERVALS.WEEK
-
         if self.plan.interval == self.plan.INTERVALS.MONTH:
             first_day_of_interval = date(start_date.year, start_date.month, 1)
             last_day_index = calendar.monthrange(start_date.year,
@@ -1235,14 +1231,91 @@ class Subscription(models.Model):
                 return True, percent
 
         elif self.plan.interval == self.plan.INTERVALS.MONTHISH:
+            # The interval is determined by the start date, and the end
+            # date is that + 1, with the exception of months that don't
+            # contain that calendar day.
+            # 
             first_day_of_interval = date(start_date.year,
                                          start_date.month,
                                          start_date.day)
+
+            next_month = start_date.month + 1
+            if next_month > 12:
+                next_month = 1
+
+            last_day_index = calendar.monthrange(start_date.year,
+                                                 next_month)[1]
+
+            next_month_start = start_date.day
+            if last_day_index >= 28 and next_month_start >= 28:
+                next_month_start = 28
+
+            last_day_of_interval = date(start_date.year,
+                                        next_month,
+                                        next_month_start)
+
+            logger.debug("_get_proration_status_and_percent: ")
+            logger.debug("               first_day_of_interval: ", first_day_of_interval)
+            logger.debug("                last_day_of_interval: ", last_day_of_interval)
+
+            if start_date == first_day_of_interval and end_date == last_day_of_interval:
+                return False, Decimal('1.0000')
+            else:
+                days_in_full_interval = \
+                    (last_day_of_interval - first_day_of_interval).days
+                days_in_interval = (end_date - start_date).days
+                _percent = 1.0 * (days_in_interval / days_in_full_interval)
+                percent = Decimal(_percent).quantize(Decimal('0.0000'))
+
+                logger.debug("                last_day_of_interval: ", last_day_of_interval)
+                logger.debug("               first_day_of_interval: ", first_day_of_interval)
+                logger.debug(
+                    "_get_proration_status_and_percent: %f / %f = %f" \
+                    % (days_in_interval, days_in_full_interval, _percent)
+                )
+
+                return True, percent
+
+        elif self.plan.interval == self.plan.INTERVALS.WEEK:
+            # The interval is determined by the start date, and the end
+            # date is that + 7.
+            # 
+            first_day_of_interval = date(start_date.year,
+                                         start_date.month,
+                                         start_date.day)
+
+            last_day_of_interval = first_day_of_interval \
+                                 + timedelta(days=7)
+
+            logger.debug("_get_proration_status_and_percent: ")
+            logger.debug("               first_day_of_interval: ", first_day_of_interval)
+            logger.debug("                last_day_of_interval: ", last_day_of_interval)
+
+            if start_date == first_day_of_interval and end_date == last_day_of_interval:
+                return False, Decimal('1.0000')
+            else:
+                days_in_full_interval = \
+                    (last_day_of_interval - first_day_of_interval).days
+                days_in_interval = (end_date - start_date).days
+                _percent = 1.0 * (days_in_interval / days_in_full_interval)
+                percent = Decimal(_percent).quantize(Decimal('0.0000'))
+
+                logger.debug("                last_day_of_interval: ", last_day_of_interval)
+                logger.debug("               first_day_of_interval: ", first_day_of_interval)
+                logger.debug(
+                    "_get_proration_status_and_percent: %f / %f = %f" \
+                    % (days_in_interval, days_in_full_interval, _percent)
+                )
+
+                return True, percent
+        else:
+            # TODO: make a few daily tests that confirm this.  Simply
+            # returning original functionality here 
+            first_day_of_interval = date(start_date.year, start_date.month, 1)
             last_day_index = calendar.monthrange(start_date.year,
                                                  start_date.month)[1]
-            last_day_of_interval = date(start_date.year,
-                                        start_date.month + 1,
-                                        start_date.day)
+            last_day_of_interval = date(start_date.year, start_date.month,
+                                     last_day_index)
 
             logger.debug("_get_proration_status_and_percent: ")
             logger.debug("               first_day_of_interval: ", first_day_of_interval)
@@ -1255,8 +1328,8 @@ class Subscription(models.Model):
                 logger.debug("                last_day_of_interval: ", last_day_of_interval)
                 logger.debug("               first_day_of_interval: ", first_day_of_interval)
                 days_in_full_interval = \
-                    (last_day_of_interval - first_day_of_interval).days
-                days_in_interval = (end_date - start_date).days
+                    (last_day_of_interval - first_day_of_interval).days + 1
+                days_in_interval = (end_date - start_date).days + 1
                 _percent = 1.0 * (days_in_interval / days_in_full_interval)
                 percent = Decimal(_percent).quantize(Decimal('0.0000'))
                 logger.debug(
@@ -1266,8 +1339,8 @@ class Subscription(models.Model):
 
                 return True, percent
 
-        else:
-            raise NotImplementedError
+        return False, Decimal('1.0000')
+
 
 
     def _entry_unit(self, context):
