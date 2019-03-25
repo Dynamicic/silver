@@ -1162,7 +1162,6 @@ class Subscription(models.Model):
         #
         #   So, if we have a yearly plan and the user is subscribed into
         #   the next year for an amount of time, the amount reflected
-        #   will include the whole rest of that month.
         # 
         #   It turns out that this results in a little weird behavior,
         #   because this function isn't sensitive to the type of

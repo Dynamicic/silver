@@ -16,7 +16,7 @@ requirements = [
     'Click>=6.0',
     # 'Fabric3',
     # 'python-dotenv==0.10.1',
-    'django==1.11.17',
+    'django==1.11.19',
     'django-dotenv==1.4.2',
     'uwsgi==2.0.17.1',
     'kombu==4.4.0',
@@ -103,6 +103,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='.',
-    version='0.1.2',
+    version='0.1.5',
     zip_safe=False,
 )
