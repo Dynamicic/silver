@@ -93,6 +93,8 @@ urlpatterns = [
         documents_views.InvoiceStateHandler.as_view(), name='invoice-state'),
     url(r'^invoices/(?P<invoice_id>\d+).pdf$',
         silver_views.invoice_pdf, name='invoice-pdf'),
+    url(r'^invoices/(?P<invoice_id>\d+).html$',
+        silver_views.invoice_html, name='invoice-html'),
 
     url(r'^proformas/$',
         documents_views.ProformaListCreate.as_view(), name='proforma-list'),

@@ -5,6 +5,9 @@
 2. figuring out how we’re gonna have different billing cycles for recurring vs
    usage billing.
 
+3. invoice html tweaks - referencing linked subscriptions from the generated
+   invoice
+
 ## billing cycle end date / VariableCycleEndDate
 
 need to store this not only for reference but because sometimes it needs to be
@@ -114,4 +117,11 @@ periods are pinned to calendar months.
 
 * plans and subscriptions: demoable plan on server running transactions against
   authorize.net sandbox
+
+## invoice html tweaks
+
+ * Clean up and neaten based on sample
+ * Invoice entry item generation should be altered to include something with a
+   $0 amount that references the linked subscription, providing either a
+   subscription ID or something useful to customers
 

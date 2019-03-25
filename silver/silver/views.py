@@ -22,8 +22,9 @@ from furl import furl
 from dal import autocomplete
 
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Q
-from django.http import Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -48,6 +49,10 @@ def invoice_pdf(request, invoice_id):
     invoice = get_object_or_404(Invoice, id=invoice_id)
     return HttpResponseRedirect(invoice.pdf.url)
 
+@staff_member_required
+def invoice_html(request, invoice_id):
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    return HttpResponse(invoice.generate_html())
 
 @csrf_exempt
 @get_transaction_from_token

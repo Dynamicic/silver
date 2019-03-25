@@ -55,11 +55,11 @@ COPY ./docker-scripts /code/docker-scripts
 RUN cd /code \
     && pip install --upgrade pip --no-cache-dir
 
+# --editable silversdk
 RUN cd /code \
     && pip install --editable silver_authorizenet \
                    --editable silver \
                    --editable antikythera \
-                   --editable src/infra/silversdk \
                    --no-cache-dir
 
 RUN rm -rf /code/src

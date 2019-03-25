@@ -16,7 +16,7 @@ django-annoying>=0.10,<0.11  # (various Django helpers) ------------------------
 django-autocomplete-light>=3.2,<3.3  # ----------------------------------------- (bumped 2018-06-07)
 
 # API
-djangorestframework>=3.6.3,<3.9  # --------------------------------------------- (bumped 2018-06-07)
+djangorestframework==3.9.1  # --------------------------------------------- (bumped 2018-06-07)
 djangorestframework-bulk<0.3  # ----------------------------------------------- (checked 2018-06-07)
 
 # I18n

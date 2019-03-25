@@ -11,7 +11,7 @@ fi
 if [ "$SILVER_MIGRATE" == "yes" ] ; then
     antikythera-manage migrate --noinput
     # Dev purposes only, obviously.
-    echo "from django.contrib.auth.models import User; User.objects.create_superuser('root', 'admin@example.com', 'adminadmin')" | antikythera-manage shell
+    # echo "from django.contrib.auth.models import User; User.objects.create_superuser('root', 'admin@example.com', 'adminadmin')" | antikythera-manage shell || true
 fi
 
 if [ "$SILVER_LOAD_DEV_DATA" == "yes" ] ; then

@@ -29,7 +29,7 @@ services:
       # Fernet.generate_key()
       - ANTIKYTHERA_PAYMENT_METHOD_SECRET=HDn6Y37LsdR61G8Ht91naI_u0RFhv2DpxYRNOP3HB1g
 
-      - SILVER_MIGRATE=yes
+      - SILVER_MIGRATE=no
       - SILVER_LOAD_DEV_DATA=no
       - SILVER_RUN_TESTS=no
 
