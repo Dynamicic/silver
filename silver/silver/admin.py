@@ -153,7 +153,8 @@ class PlanAdmin(ModelAdmin):
 
 class MeteredFeatureUnitsLogInLine(TabularInline):
     model = MeteredFeatureUnitsLog
-    list_display = ['metered_feature']
+    # list_display = ['metered_feature', 'consumed_units', 'start_date', 'end_date', ]
+    # fields = ['metered_feature', 'start_date', 'end_date', ]
     readonly_fields = ('start_date', 'end_date', )
     extra = 0
 
@@ -289,6 +290,8 @@ class CustomerAdmin(LiveModelAdmin):
                      'state', 'email', 'meta']
     actions = ['check_overpayments', 'check_all_subscriptions', 'generate_all_documents']
     exclude = ['live']
+    inlines = []
+
 
     def check_overpayments(self, request, queryset):
         if request.POST.get('post'):
@@ -532,7 +535,9 @@ class BillingDocumentForm(forms.ModelForm):
         if not customer:
             return cleaned_data
 
-        currency = cleaned_data['currency']
+        currency = None
+        if 'currency' in cleaned_data:
+            currency = cleaned_data.get('currency')
 
         cleaned_data['transaction_currency'] = (
             cleaned_data['transaction_currency'] or customer.currency or currency

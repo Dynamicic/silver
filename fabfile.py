@@ -109,7 +109,7 @@ def prod_migrations():
     set_environment('dev')
     with cd(env.target_dir):
         with prefix("source %s/env/bin/activate" % env.target_dir):
-            run("antikythera-manage migrate --noinput")
+            run("antikythera-manage migrate --noinput silver")
 
 def hup_services():
     set_environment('dev')
