@@ -1,9 +1,10 @@
 import os, sys
-# sys.path.append('/code/silver/')
-# sys.path.append('/code/silver_authorizenet/')
+sys.path.append('/code/silver/')
+sys.path.append('/code/silver_authorizenet/')
 
 from authorizenet import constants as authorizenetconstants
 # import constants
+import django
 
 from settings import *
 
@@ -54,13 +55,15 @@ LOGGING = {
 
 
 DEBUG=True
-DATABASES={
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': 'testdb',
-    }
-}
+# DATABASES={
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': 'testdb',
+#     }
+# }
+
 PAYMENT_METHOD_SECRET=b'MOW_x1k-ayes3KqnFHNZUxvKipC8iLjxiczEN76TIEA='
+
 # PAYMENT_PROCESSORS={
 #     'AuthorizeNetTriggered': {
 #         'setup_data': {
@@ -84,16 +87,19 @@ PAYMENT_METHOD_SECRET=b'MOW_x1k-ayes3KqnFHNZUxvKipC8iLjxiczEN76TIEA='
 #         'class': 'silver.models.payment_processors.manual.ManualProcessor'
 #     }
 # }
-# INSTALLED_APPS=(
-#     'dal',
-#     'dal_select2',
-#     'django.contrib.auth',
-#     'django.contrib.contenttypes',
-#     'django.contrib.sessions',
-#     'django.contrib.staticfiles',
-#     'django.contrib.admin',
-#     'silver',
-#     'silver_authorizenet',),
+
+INSTALLED_APPS=(
+    'dal',
+    'dal_select2',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.staticfiles',
+    'django.contrib.admin',
+    'silver',
+    'silver_authorizenet',
+)
+
 CACHES={
     'default': {
         'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
@@ -105,4 +111,4 @@ STATIC_URL='/static/'
 SILVER_AUTOMATICALLY_CREATE_TRANSACTIONS=True
 
 
-# django.setup()
+django.setup()

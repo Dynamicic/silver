@@ -1,0 +1,9 @@
+include LICENSE
+include README.md
+recursive-include silver_authorizenet/templates *
+include requirements.test.txt
+include requirements.txt
+graft silver_authorizenet
+global-exclude *.orig *.pyc *.log *.swp
+include versioneer.py
+include silver_authorizenet/_version.py

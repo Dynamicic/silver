@@ -1,0 +1,7 @@
+[run]
+omit =
+	tests/*
+	silver_authorizenet/migrations/*
+	silver_authorizenet/__init__.py
+	silver_authorizenet/models/__init__.py
+	silver_authorizenet/api/__init__.py

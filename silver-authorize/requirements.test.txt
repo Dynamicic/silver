@@ -1,0 +1,12 @@
+-r requirements.txt
+
+# freeze xhtml2pdf until a new version will get publish
+xhtml2pdf
+pytest-django==3.4.5
+coverage==4.2
+pytest-cov==2.4.0
+mock==2.0.0
+django-dynamic-fixture==1.9.0
+factory-boy==2.8.1
+pep8==1.7.0
+pywatch==0.4

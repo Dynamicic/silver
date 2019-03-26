@@ -1,0 +1,2 @@
+django-silver
+authorizenet==1.1.2

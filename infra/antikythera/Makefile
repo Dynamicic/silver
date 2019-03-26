@@ -77,9 +77,10 @@ watch-runner:
     	pytest -vv \
     	--capture=sys \
     	--pyargs \
-        silver_authorizenet.tests \
-        silver.tests.unit.test_subscription_proration \
-        silver.tests.unit.test_metered_features
+        silver_authorizenet.tests
+
+# silver.tests.unit.test_subscription_proration \
+# silver.tests.unit.test_metered_features
 
 .PHONY: test-watch
 test-watch: /tmp/test.env

@@ -1,0 +1,4 @@
+sandbox = 'sandbox'
+authorize_api_login = 'YOUR_API_LOGIN'
+authorize_transaction_key = 'YOUR_TRANSACTION_KEY'
+authorize_key = 'YOUR_KEY'

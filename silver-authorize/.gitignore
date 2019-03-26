@@ -1,8 +1,9 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-.mypy_cache/
 *.py[cod]
 *$py.class
+
+*.sw*
 
 # C extensions
 *.so
@@ -13,7 +14,6 @@ env/
 build/
 develop-eggs/
 dist/
-packages/
 downloads/
 eggs/
 .eggs/
@@ -54,7 +54,7 @@ coverage.xml
 # Django stuff:
 *.log
 local_settings.py
-settings.py
+constants.py
 
 # Flask stuff:
 instance/
@@ -90,21 +90,3 @@ ENV/
 
 # Rope project settings
 .ropeproject
-
-
-db.sqlite
-app_media/
-app_static/
-settings_local.py
-
-*.swp
-*.sw*
-.drone.sec.yml
-db.sqlite3
-
-# Pycharm
-.idea/
-
-# Redis dump
-dump.rdb
-*.lock
