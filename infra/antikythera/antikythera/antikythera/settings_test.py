@@ -62,31 +62,50 @@ DEBUG=True
 #     }
 # }
 
+authorize_api_login       = os.environ['AUTHORIZE_API_LOGIN']
+authorize_transaction_key = os.environ['AUTHORIZE_TRANSACTION_KEY']
+authorize_key             = os.environ['AUTHORIZE_KEY']
+
+authorizenet_setup_data = {
+    'environment': authorizenetconstants.constants.SANDBOX,
+    'api_login': authorize_api_login,
+    'transaction_key': authorize_transaction_key,
+    'key': authorize_key
+}
+
 PAYMENT_METHOD_SECRET=b'MOW_x1k-ayes3KqnFHNZUxvKipC8iLjxiczEN76TIEA='
 
-# PAYMENT_PROCESSORS={
-#     'AuthorizeNetTriggered': {
-#         'setup_data': {
-#             'environment': authorizenetconstants.constants.SANDBOX,
-#             'api_login': constants.authorize_api_login,
-#             'transaction_key': constants.authorize_transaction_key,
-#             'key': constants.authorize_key
-#         },
-#         'class': 'silver_authorizenet.payment_processors.AuthorizeNetTriggered',
-#     },
-#     'AuthorizeNetTriggeredRecurring': {
-#         'setup_data': {
-#             'environment': authorizenetconstants.constants.SANDBOX,
-#             'api_login': constants.authorize_api_login,
-#             'transaction_key': constants.authorize_transaction_key,
-#             'key': constants.authorize_key
-#         },
-#         'class': 'silver_authorizenet.payment_processors.AuthorizeNetTriggeredRecurring'
-#     },
-#     'Manual': {
-#         'class': 'silver.models.payment_processors.manual.ManualProcessor'
-#     }
-# }
+PAYMENT_PROCESSORS = {
+    'manual': {
+        'class': 'silver.payment_processors.manual.ManualProcessor',
+    },
+    'authorizenet_triggered': {
+        'class': 'silver_authorizenet.payment_processors.AuthorizeNetTriggered',
+        'setup_data': {
+            'environment': authorizenetconstants.constants.SANDBOX,
+            'api_login': authorize_api_login,
+            'transaction_key': authorize_transaction_key,
+            'key': authorize_key
+        },
+    },
+    'AuthorizeNetTriggered': {
+        'class': 'silver_authorizenet.payment_processors.AuthorizeNetTriggered',
+        'setup_data': {
+            'environment': authorizenetconstants.constants.SANDBOX,
+            'api_login': authorize_api_login,
+            'transaction_key': authorize_transaction_key,
+            'key': authorize_key
+        },
+    },
+    # 'braintree_triggered': {
+    #     'class': 'silver_braintree.payment_processors.BraintreeTriggered',
+    #     'setup_data': braintree_setup_data,
+    # },
+    # 'braintree_recurring': {
+    #     'class': 'silver_braintree.payment_processors.BraintreeTriggeredRecurring',
+    #     'setup_data': braintree_setup_data,
+    # }
+}
 
 INSTALLED_APPS=(
     'dal',
