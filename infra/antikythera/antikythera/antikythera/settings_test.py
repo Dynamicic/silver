@@ -20,20 +20,30 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': '/tmp/silver-debug.log',
         },
+        'console': {
+            'class': 'logging.StreamHandler',
+            # 'formatter': 'console',
+        },
     },
+
     'loggers': {
         'django': {
-            'handlers': ['file'],
+            'handlers': ['file', 'console'],
             'propagate': True,
             'level': 'WARNING',
         },
         'django.db.backends.schema': {
-            'handlers': ['file'],
+            'handlers': ['file', 'console'],
             'propagate': True,
             'level': 'WARNING',
         },
+        'authorizenet.sdk': {
+            'handlers': ['file', 'console'],
+            'level': 'DEBUG',
+            'formatter': '%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+        },
         '': {
-            'handlers': ['file'],
+            'handlers': ['file', 'console'],
             'level': 'DEBUG',
         }
     }

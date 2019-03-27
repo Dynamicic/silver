@@ -88,7 +88,7 @@ test-watch: /tmp/test.env
 		--patterns="*.py" \
 		--recursive \
 		--command="flock -n antiky.testing.lock make watch-runner" \
-		antikythera tests /code/silver/silver
+		antikythera tests /code/silver/silver /code/silver_authorizenet
 
 test-all: ## run tests on every Python version with tox
 	tox

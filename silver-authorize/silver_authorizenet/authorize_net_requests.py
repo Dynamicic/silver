@@ -23,6 +23,8 @@ from authorizenet.apicontrollers import (createTransactionController,
                                          getTransactionDetailsController,
                                          createCustomerPaymentProfileController)
 
+from .authorize_net_exceptions import *
+
 logger = logging.getLogger(__name__)
 
 class AuthorizeNetRequestHelpers(object):
@@ -164,7 +166,7 @@ class AuthorizeNetRequests(AuthorizeNetRequestHelpers):
         except Exception as e:
             logger.warning(
                 'Error in request to create Authorize.net customer profile %s', {
-                    'customer_id': customer_authorizenet_id,
+                    'customer_id': customer_id,
                     'exception': str(e)
                 }
             )
@@ -180,8 +182,8 @@ class AuthorizeNetRequests(AuthorizeNetRequestHelpers):
         else:
             logger.warning(
                 'Couldn\'t create Authorize.net customer profile %s', {
-                    'customer_id': customer_authorizenet_id,
-                    'messages': response.messages.message[0]['text'].text
+                    'customer_id': customer_id,
+                    'messages': profile_response.messages.message[0]['text'].text
                 }
             )
 
@@ -233,6 +235,15 @@ class AuthorizeNetRequests(AuthorizeNetRequestHelpers):
 
         response = controller.getresponse()
 
+        if response is None:
+            logger.warning(
+                'No response returned', {
+                    'customer_id': customer_id,
+                    'messages': response.messages.message[0]['text'].text
+                }
+            )
+            return False
+
         if (response.messages.resultCode == apicontractsv1.messageTypeEnum.Ok):
             return self._update_customer(
                 customer,
@@ -242,7 +253,7 @@ class AuthorizeNetRequests(AuthorizeNetRequestHelpers):
         else:
             logger.warning(
                 'Couldn\'t create Authorize.net customer profile %s', {
-                    'customer_id': customer_authorizenet_id,
+                    'customer_id': customer_id,
                     'messages': response.messages.message[0]['text'].text
                 }
             )
@@ -379,12 +390,26 @@ class AuthorizeNetRequests(AuthorizeNetRequestHelpers):
                     logger.info("errors: %s" % {
                         'err': t_resp.errors
                     })
+            # Response returned is an error
             else:
-                try:
-                    status = str(t_resp.errors.error[0].errorCode)
-                    logger.info("errors: %s" % {'err': t_resp.errors})
-                except:
-                    logger.info("unspecified error: ", repr(t_resp))
+                if result_transaction.messages.resultCode == 'Error':
+                    result_msg = result_transaction.messages.message[0].code
+                    result_txt = result_transaction.messages.message[0].text
+
+                    status =  False
+                    try:
+                        status = str(t_resp.errors.error[0].errorCode) + \
+                                ": " + \
+                                 str(t_resp.errors.error[0].errorText)
+                    except:
+                        pass
+
+                    if result_msg == 'E00007':
+                        raise AuthNetInvalidCreds
+                    else:
+                        raise AuthNetException(str(result_msg) + ": " + str(status or result_txt))
+                else:
+                    raise Exception("Unknown error")
 
         transaction.data.update({
             'status': status,
@@ -551,7 +576,7 @@ class AuthorizeNetRequests(AuthorizeNetRequestHelpers):
         :return: An authorize.net TransactionRequest
 
         """
-        logging.info("creating transaction request")
+        logger.info("creating transaction request")
 
         payment            = apicontractsv1.paymentType()
         payment.creditCard = self._create_credit_card(transaction.payment_method.customer)
@@ -559,7 +584,10 @@ class AuthorizeNetRequests(AuthorizeNetRequestHelpers):
         # Create order information
         order               = apicontractsv1.orderType()
         order.invoiceNumber = transaction.document.series
-        dsc = "\n".join(map(str, transaction.document.entries))
+        if len(transaction.document.entries) > 0:
+            dsc = "\n".join(map(str, transaction.document.entries))
+        else:
+            dsc = ""
         if len(dsc) > 40:
             dsc = dsc[0:40]
         order.description   = dsc
@@ -641,7 +669,7 @@ class AuthorizeNetRequests(AuthorizeNetRequestHelpers):
         try:
             transaction_controller.execute()
         except Exception as e:
-            logger.warning(
+            logger.info(
                 'Error in request create transaction %s', {
                     'exception': str(e)
                 }

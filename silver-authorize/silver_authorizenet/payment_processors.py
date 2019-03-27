@@ -69,6 +69,10 @@ class AuthorizeNetTriggeredBase(AuthorizeNetRequests,
         customer_authorizenet_id = customer_data.get('id')
 
         _cust         = self._create_customer_profile(customer, customer_data)
+
+        if not _cust:
+            return False
+
         _cust_payment = self._create_customer_payment_profile(customer, _cust)
 
         if _cust_payment:
@@ -250,6 +254,7 @@ class AuthorizeNetTriggeredBase(AuthorizeNetRequests,
         """
 
         payment_processor = get_instance(transaction.payment_processor)
+        print("bloop")
 
         if not payment_processor == self:
             return False

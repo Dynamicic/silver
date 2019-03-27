@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 from silver_authorizenet import __version__ as version
 
 install_requires = [
-    'authorizenet'
+    'authorizenet==1.1.2'
 ]
 
 
