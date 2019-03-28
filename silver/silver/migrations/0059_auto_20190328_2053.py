@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='customer',
             name='uuid',
-            field=models.UUIDField(default=uuid.uuid4, editable=False, unique=True),
+            field=models.UUIDField(default=uuid.uuid4, editable=False, unique=True, null=True),
         ),
         migrations.AlterField(
             model_name='pdf',
