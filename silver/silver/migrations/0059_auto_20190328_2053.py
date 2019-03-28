@@ -8,6 +8,11 @@ from django.db import migrations, models
 import silver.models.documents.pdf
 import uuid
 
+def create_uuid(apps, schema_editor):
+    Customer = apps.get_model('silver', 'Customer')
+    for customer in Customer.objects.all():
+        customer.uuid = uuid.uuid4()
+        customer.save()
 
 class Migration(migrations.Migration):
 
@@ -16,10 +21,21 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # migrations.AddField(
+        #     model_name='customer',
+        #     name='uuid',
+        #     field=models.UUIDField(default=uuid.uuid4, editable=False, unique=True, null=True),
+        # ),
         migrations.AddField(
             model_name='customer',
             name='uuid',
-            field=models.UUIDField(default=uuid.uuid4, editable=False, unique=True, null=True),
+            field=models.UUIDField(blank=True, null=True),
+        ),
+        migrations.RunPython(create_uuid),
+        migrations.AlterField(
+            model_name='customer',
+            name='uuid',
+            field=models.UUIDField(unique=True, default=uuid.uuid4, editable=False, null=True)
         ),
         migrations.AlterField(
             model_name='pdf',
