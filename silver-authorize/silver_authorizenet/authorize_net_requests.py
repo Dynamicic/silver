@@ -457,14 +457,21 @@ class AuthorizeNetRequests(AuthorizeNetRequestHelpers):
                 t_resp_msgs = hasattr(response, 'messages') is True
                 if t_resp_msgs:
                     status = str(t_resp.responseCode)
-                    resptext = t_resp.messages.message[0].description
-                    # logger.info("code: %s - %s", status, resptext)
+                    try:
+                        resptext = t_resp.messages.message[0].description
+                    except:
+                        resptext =  t_resp.errors.error[0].errorText
+                    try:
+                        status = str(t_resp.errors.error[0].errorCode)
+                    except:
+                        pass
+                    logger.info("code: %s - %s", status, resptext)
                 else:
                     status = str(t_resp.errors.error[0].errorCode)
-                    # logger.info("code: %s - %s", status, t_resp.errors.error[0].errorText)
+                    logger.info("code: %s - %s", status, t_resp.errors.error[0].errorText)
             else:
                 status = str(t_resp.errors.error[0].errorCode)
-                # logger.info("code: %s - %s", status, t_resp.errors.error[0].errorText)
+                logger.info("code: %s - %s", status, t_resp.errors.error[0].errorText)
 
         return status, resp_okay
 

@@ -75,9 +75,15 @@ DEBUG=True
 authorize_api_login       = os.environ['AUTHORIZE_API_LOGIN']
 authorize_transaction_key = os.environ['AUTHORIZE_TRANSACTION_KEY']
 authorize_key             = os.environ['AUTHORIZE_KEY']
+authorize_environment     = os.environ.get('AUTHORIZE_ENVIRONMENT', 'SANDBOX')
+
+auth_env = authorizenetconstants.constants.SANDBOX
+
+if authorize_environment == 'PRODUCTION':
+    auth_env = authorizenetconstants.constants.PRODUCTION
 
 authorizenet_setup_data = {
-    'environment': authorizenetconstants.constants.SANDBOX,
+    'environment': auth_env,
     'api_login': authorize_api_login,
     'transaction_key': authorize_transaction_key,
     'key': authorize_key
@@ -92,7 +98,7 @@ PAYMENT_PROCESSORS = {
     'authorizenet_triggered': {
         'class': 'silver_authorizenet.payment_processors.AuthorizeNetTriggered',
         'setup_data': {
-            'environment': authorizenetconstants.constants.SANDBOX,
+            'environment': auth_env,
             'api_login': authorize_api_login,
             'transaction_key': authorize_transaction_key,
             'key': authorize_key
@@ -101,7 +107,7 @@ PAYMENT_PROCESSORS = {
     'AuthorizeNetTriggered': {
         'class': 'silver_authorizenet.payment_processors.AuthorizeNetTriggered',
         'setup_data': {
-            'environment': authorizenetconstants.constants.SANDBOX,
+            'environment': auth_env,
             'api_login': authorize_api_login,
             'transaction_key': authorize_transaction_key,
             'key': authorize_key

@@ -15,6 +15,7 @@ services:
       # - SILVER_TEST_SHELL=no
 
       - DJANGO_SETTINGS_MODULE=antikythera.antikythera.settings
+      # sandbox: 
       - AUTHORIZE_API_LOGIN=86B9p3PRs9r
       - AUTHORIZE_TRANSACTION_KEY=5A7vcCaV2u9u3696
       - AUTHORIZE_KEY=Simon
