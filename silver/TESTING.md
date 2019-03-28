@@ -34,6 +34,7 @@ invoices as well as issue payments to the payment processor, and much more.
    * [add a manual transaction](#add-a-manual-transaction)
    * [set the transaction state to settled](#set-the-transaction-state-to-settled)
    * [Get the invoice to check the status.](#get-the-invoice-to-check-the-status)
+* [One-off Transactions](#one-off-transactions)
 * [Testing that failed transactions can automatically be recreated](#testing-that-failed-transactions-can-automatically-be-recreated)
    * [Creating an invoice and payment.](#creating-an-invoice-and-payment)
    * [Failing the transaction](#failing-the-transaction)
@@ -532,6 +533,56 @@ automatically marked as paid within silver.
       --url http://dev.billing.dynamicic.com/silver/invoices/$INVOICE_ID/ \
       --header 'authorization: Token $YOUR_AUTH_TOKEN' \
       --header 'content-type: application/json'
+
+
+## One-off Transactions
+
+That previous section was a lot to get a transaction to go. If you don't need
+to track the provider, invoice, customer, etc., you can create a one-off
+transaction. 
+
+    curl --request POST \
+      --url http://dev.billing.dynamicic.com/silver/transactions/one-off/ \
+      --header 'content-type: application/json' \
+      --header 'authorization: Token $YOUR_AUTH_TOKEN' \
+      --data '{
+	    "payment_processor": "AuthorizeNetTriggered",
+	    "customer": {
+		    "first_name": "One off",
+		    "last_name": "Test Customer",
+		    "company": "Some Company Name",
+		    "email": "asdf@bbq.com",
+		    "address_1": "1234 Mulberry Lane",
+		    "city": "Nantucket",
+		    "state": "Hawaii",
+		    "zip_code": "41414",
+		    "country": "US",
+		    "currency": "USD",
+		    "meta": {
+			    "cardNumber": "4111111111111111",
+			    "cardCode": "123",
+			    "expirationDate": "2020-12"
+		    }
+	    },
+	    "invoice": {
+		    "due_date": "2019-02-01",
+		    "issue_date": "2019-01-15",
+		    "sales_tax_name": "sales tax",
+		    "sales_tax_percent": "0.05"
+	    },
+	    "entry": {
+		    "description": "Charcoal Latte",
+		    "unit": "Cup",
+		    "unit_price": "25.0000",
+		    "quantity": "2.0000",
+		    "total_before_tax": "50.0"
+	    },
+	    "amount": 50.0
+    }
+    '
+
+The response will return each of the created objects, but `transaction` is
+probably what you're looking for.
 
 ## Testing that failed transactions can automatically be recreated
 

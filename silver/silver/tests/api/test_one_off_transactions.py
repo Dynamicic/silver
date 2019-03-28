@@ -162,4 +162,5 @@ class TestCustomerEndpoints(APITestCase):
                                     content_type='application/json')
 
         assert float( response.data.get('transaction').get('amount', "-1")) == 25.0
+        assert 1 == 0
 

@@ -1,47 +1,8 @@
 # next
 
-1. saving the bill cycle end date in the subscription model
-
-2. figuring out how we’re gonna have different billing cycles for recurring vs
-   usage billing.
-
-3. invoice html tweaks - referencing linked subscriptions from the generated
-   invoice
+1. ...
 
 ## billing cycle end date / VariableCycleEndDate
-
-need to store this not only for reference but because sometimes it needs to be
-altered, and we cannot alter the cycle start date because this would omit days
-when searching for usage billing stats.
-
-### Use case:
-
- - grumpy customer is mad about something, sales offers to push billing cycle
-   back a few days to make them happy and save them some cash.
-
- - next cycle calculated off of this new date, but we can't alter the start
-   date or cycle start date
-
- - push billing cycle back 5 days to credit, extra free days etc
- 
-### Implementation doc
-
-Subject to change, but: 
-
- * Currently only works with MONTHISH billing cycle because that's the one that
-   supports variable start dates.
-
- * `Subscription.cycle_end_override` - default is null.  If a date value is
-   actually stored, that will be a manual cycle end and the billing
-   calculations will run by that.
-
- * `Subscription.cycle_end_reference_date_display` - read only field that
-   displays the next cycle end day no matter what `cycle_end_reference` is set
-   to.
-
- * Once the cycle end override has been used up/passed, and a little buffer
-   period has passed, the cycle end override will be unset in the database
-   because billing cycles will be running off of a new cycle end date.
 
 Questions:
 
@@ -108,15 +69,6 @@ automatically
 TODO: fix proration - it looks like the MONTHLYISH setting may break
 subscription proration calculations, since proration stuff assumes that monthly
 periods are pinned to calendar months.
-
-
-# later
-
-* sdk: manual transaction endpoint that creates customer, invoice & starts
-  processing transaction
-
-* plans and subscriptions: demoable plan on server running transactions against
-  authorize.net sandbox
 
 ## invoice html tweaks
 

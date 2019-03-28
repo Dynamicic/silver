@@ -59,7 +59,6 @@ In order to activate these features within a user's `Subscription`, however, we
 need to log usage of the users. If no users are logged, the calculation of
 consumed minutes will fall back to the existing silver functionality. If logged 
 
-
     users_log = MeteredFeatureUnitsLog(
         subscription=subscription,
         metered_feature=users_feature,
@@ -95,6 +94,52 @@ To understand better how the number of consumed units are determined, see:
 
 The summary is that this feature relies on existing code that determines
 included units via log items during the billing date period.
+
+## Billing cycle end date / VariableCycleEndDate
+
+Sometimes billing dates need to be altered for the next cycle. This offers
+functionality to change it for the upcoming cycle, at which point billing
+cycles will consistently fall around that date for MONTHISH plans.
+
+### Use case:
+
+ - grumpy customer is mad about something, sales offers to push billing cycle
+   back a few days to make them happy and save them some cash.
+
+ - next cycle calculated off of this new date, but we can't alter the start
+   date or cycle start date
+
+ - push billing cycle back 5 days to credit, extra free days etc
+ 
+### Implementation doc
+
+Current implementation notes:
+
+ * Currently only works with MONTHISH billing cycle because that's the one that
+   supports variable start dates.
+
+ * `Subscription.cycle_end_override` - default is null.  If a date value is
+   actually stored, that will be a manual cycle end and the billing
+   calculations will run by that.
+
+ * `Subscription.cycle_end_reference_date_display` - read only field that
+   displays the next cycle end day no matter what `cycle_end_reference` is set
+   to.
+
+ * Once the cycle end override has been used up/passed, and a little buffer
+   period has passed, the cycle end override will be unset in the database
+   because billing cycles will be running off of a new cycle end date.
+
+## One-off transactions / OneOffTransactions
+
+In Silver every transaction requires an invoice, which requires a provider and
+a customer. This endpoint manages all that, and returns a single transaction.
+
+See TESTING.md for API structure.
+
+## Linked Subscriptions for split billing / LinkedSubscriptions
+
+TODO: write doc
 
 ## Pre-billed Metered Features (PrebilledMeteredFeature)
 

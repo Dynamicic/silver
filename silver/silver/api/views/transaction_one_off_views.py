@@ -24,16 +24,33 @@ from silver.api.serializers.documents_serializers import InvoiceSerializer
 
 from silver.models import PaymentMethod, Transaction, Invoice, Customer, Provider, DocumentEntry
 
-class TransactionOneOff(ListCreateAPIView):
+import coreapi
+
+
+# doc: OneOffTransactions
+class TransactionOneOff(APIView):
     permission_classes = (permissions.IsAuthenticated,)
-    serializer_class = TransactionSerializer
-    filter_backends = (DjangoFilterBackend,)
-    filter_class = TransactionFilter
+    # serializer_class = TransactionSerializer
+    # filter_backends = (DjangoFilterBackend,)
+    # filter_class = TransactionFilter
+
+    # TODO: write out a schema once this settles.
+    schema = coreapi.Document(
+        title='One-off Transaction API',
+        content={ }
+    )
 
     def post(self, request, *args, **kwargs):
+        """ Create a one off transaction by way of creating an invoice,
+        payment method and document, and return the created transaction.
+        """
+
         import simplejson as json
 
         rq = request.data
+        print("---")
+        print(rq)
+        print("---")
 
         customer_one_off_defaults = {
             "currency": "USD",
@@ -56,7 +73,7 @@ class TransactionOneOff(ListCreateAPIView):
         customer_default_payment_method = {
             # TODO: authorize.net
             "customer": customer,
-            "payment_processor": "manual",
+            "payment_processor": rq.get("payment_processor", "manual"),
             "verified": True,
             "canceled": False,
 
@@ -111,7 +128,7 @@ class TransactionOneOff(ListCreateAPIView):
 
         invoice_intry_defaults = {
             "quantity": 1.0,
-            "unit_price": rq.get('amount', 0.0),
+            "unit_price": rq.get("amount", 0.0),
             "start_date": None,
             "end_date": None,
             "prorated": False,
@@ -121,7 +138,7 @@ class TransactionOneOff(ListCreateAPIView):
         new_entry = invoice_intry_defaults.copy()
 
         new_invoice = invoice_one_off_defaults.copy()
-        new_invoice.update(**kwargs.get('invoice', {}))
+        new_invoice.update(**kwargs.get("invoice", {}))
 
         inv = Invoice(**new_invoice)
         inv.save()
@@ -138,7 +155,7 @@ class TransactionOneOff(ListCreateAPIView):
         transaction = Transaction.objects.filter(invoice=inv).first()
 
         _ser_kwargs = {
-            'context': {'request': request}
+            "context": {"request": request}
         }
 
         return Response({
@@ -148,43 +165,4 @@ class TransactionOneOff(ListCreateAPIView):
             "invoice": InvoiceSerializer(inv, **_ser_kwargs).data,
             "transaction": TransactionSerializer(transaction, **_ser_kwargs).data,
         })
-
-
-    # def perform_create(self, serializer):
-    #     payment_method_id = self.kwargs.get('payment_method_id')
-    #     if payment_method_id:
-    #         payment_method = get_object_or_404(PaymentMethod,
-    #                                            id=payment_method_id)
-    #         serializer.save(payment_method=payment_method)
-    #     else:
-    #         serializer.save()
-
-
-
-class Blahblah(object):
-    def create_one_off_transaction(self, *args, **kwargs):
-        """ A shortcut for creating a one-off invoice. This creates a
-        customer, a payment method, a new invoice and a transaction.
-        Returns all the created objects as a single JSON response.
-
-         * Create customer
-         * Get/create default provider
-         * Create invoice with entry
-         * issue the invoice
-         * return the customer, invoice, and transactions
-
-        TODO: this whole method should probably just be moved into the
-        silver backend, it's already complex enough, so may as well keep
-        this all to one request from the client's side rather than
-        numerous requests that depend on eachother.
-        """
-
-        kleint = self.client
-
-        ## Create a customer for the one-off transaction
-
-        ## Create a customer payment method
-
-
-        return
 
