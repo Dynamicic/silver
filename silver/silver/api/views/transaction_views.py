@@ -30,6 +30,38 @@ from silver.api.filters import TransactionFilter
 from silver.api.serializers.transaction_serializers import TransactionSerializer
 from silver.models import PaymentMethod, Transaction
 
+class TransactionOneOff(ListCreateAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = TransactionSerializer
+    filter_backends = (DjangoFilterBackend,)
+    filter_class = TransactionFilter
+
+    def get_queryset(self):
+        customer_pk = self.kwargs.get('customer_pk', None)
+
+        payment_method_id = self.kwargs.get('payment_method_id')
+        if payment_method_id:
+            payment_method = get_object_or_404(PaymentMethod,
+                                               id=payment_method_id,
+                                               customer__pk=customer_pk)
+
+            return Transaction.objects.filter(
+                payment_method=payment_method
+            )
+        else:
+            return Transaction.objects.filter(
+                payment_method__customer__pk=customer_pk
+            )
+
+    def perform_create(self, serializer):
+        payment_method_id = self.kwargs.get('payment_method_id')
+        if payment_method_id:
+            payment_method = get_object_or_404(PaymentMethod,
+                                               id=payment_method_id)
+            serializer.save(payment_method=payment_method)
+        else:
+            serializer.save()
+
 
 class TransactionList(ListCreateAPIView):
     permission_classes = (permissions.IsAuthenticated,)

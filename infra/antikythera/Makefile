@@ -69,7 +69,8 @@ test: ## run tests quickly with the default Python
         silver.tests.integration.test_transactions_overpayments \
         silver.tests.api.test_metered_feature \
         silver.tests.unit.test_metered_features \
-    	silver.tests.integration.test_subscription_billing_dates
+    	silver.tests.integration.test_subscription_billing_dates \
+    	silver_authorizenet.tests
 
 .PHONY: watch-runner
 watch-runner:
@@ -77,7 +78,7 @@ watch-runner:
     	pytest -vv \
     	--capture=sys \
     	--pyargs \
-        silver_authorizenet.tests
+		silver.tests.api.test_one_off_transactions
 
 # silver.tests.unit.test_subscription_proration \
 # silver.tests.unit.test_metered_features
@@ -88,7 +89,7 @@ test-watch: /tmp/test.env
 		--patterns="*.py" \
 		--recursive \
 		--command="flock -n antiky.testing.lock make watch-runner" \
-		antikythera tests /code/silver/silver /code/silver_authorizenet
+		antikythera antikythera tests /code/silver/silver /code/silver_authorizenet
 
 test-all: ## run tests on every Python version with tox
 	tox

@@ -15,9 +15,9 @@ services:
       # - SILVER_TEST_SHELL=no
 
       - DJANGO_SETTINGS_MODULE=antikythera.antikythera.settings
-      - AUTHORIZE_API_LOGIN=asdf
-      - AUTHORIZE_TRANSACTION_KEY=asdf
-      - AUTHORIZE_KEY=asdf
+      - AUTHORIZE_API_LOGIN=86B9p3PRs9r
+      - AUTHORIZE_TRANSACTION_KEY=5A7vcCaV2u9u3696
+      - AUTHORIZE_KEY=Simon
 
       - ANTIKYTHERA_DB_NAME=silver
       - ANTIKYTHERA_DB_HOST=db

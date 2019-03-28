@@ -18,7 +18,7 @@ from django.conf.urls import url
 
 from silver import views as silver_views
 from silver.api.views import billing_entities_views, documents_views, payment_method_views, \
-    plan_views, product_code_views, subscription_views, transaction_views
+    plan_views, product_code_views, subscription_views, transaction_views, transaction_one_off_views
 
 
 urlpatterns = [
@@ -116,5 +116,8 @@ urlpatterns = [
         documents_views.PDFRetrieve.as_view(),
         name='pdf'),
     url(r'^documents/$',
-        documents_views.DocumentList.as_view(), name='document-list')
+        documents_views.DocumentList.as_view(), name='document-list'),
+
+    url(r'^transactions/one-off/$',
+        transaction_one_off_views.TransactionOneOff.as_view(), name='payment-method-transaction-one-off'),
 ]

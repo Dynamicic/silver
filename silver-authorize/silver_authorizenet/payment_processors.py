@@ -254,7 +254,6 @@ class AuthorizeNetTriggeredBase(AuthorizeNetRequests,
         """
 
         payment_processor = get_instance(transaction.payment_processor)
-        print("bloop")
 
         if not payment_processor == self:
             return False
