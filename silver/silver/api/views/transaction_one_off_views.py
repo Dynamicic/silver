@@ -25,6 +25,7 @@ from silver.api.serializers.documents_serializers import InvoiceSerializer
 from silver.models import PaymentMethod, Transaction, Invoice, Customer, Provider, DocumentEntry
 
 import coreapi
+import uuid
 
 
 # doc: OneOffTransactions
@@ -48,45 +49,59 @@ class TransactionOneOff(APIView):
         import simplejson as json
 
         rq = request.data
-        print("---")
-        print(rq)
-        print("---")
 
         customer_one_off_defaults = {
             "currency": "USD",
         }
 
-        new_customer = customer_one_off_defaults
-        new_customer.update(**rq.get('customer'))
+        customer = None
+        has_uuid = rq.get('customer', {}).get('uuid', False)
 
-        # if 'meta' in new_customer:
-        #     new_customer['meta'] = new_customer.get('meta')
+        if has_uuid:
+            _u = uuid.UUID(has_uuid)
+            # This will provide an exception if an invalid UUID is given
+            customer = Customer.objects.get(uuid=_u)
 
-        customer = Customer(**new_customer)
-        customer.save()
+        if customer == None:
+            new_customer = customer_one_off_defaults
+            new_customer.update(**rq.get('customer'))
+            customer = Customer(**new_customer)
+            customer.save()
 
         # URI object
         customer_id = customer.id
 
         ## Create a customer payment method
         # 
-        customer_default_payment_method = {
-            # TODO: authorize.net
-            "customer": customer,
-            "payment_processor": rq.get("payment_processor", "manual"),
-            "verified": True,
-            "canceled": False,
 
-            # time delta: valid for a week?
-            "valid_until": dt.now() + timedelta(days=7),
-            "display_info": "pytest",
-            "data": json.dumps({
-                "attempt_retries_after": 2,
-                "stop_retry_attempts": 5
-            })
-        }
-        new_pm = PaymentMethod(**customer_default_payment_method)
-        new_pm.save()
+        # check if a method for the customer with this payment_processor
+        # doesn't exist yet
+
+        pp = rq.get("payment_processor", "manual")
+
+        try:
+            has_method = PaymentMethod.objects.get(customer=customer,
+                                                   payment_processor=pp)
+        except PaymentMethod.DoesNotExist:
+            has_method = False
+
+        if not has_method:
+            customer_default_payment_method = {
+                "customer": customer,
+                "payment_processor": pp,
+                "verified": True,
+                "canceled": False,
+                "valid_until": dt.now() + timedelta(days=7),
+                "display_info": "pytest",
+                "data": json.dumps({
+                    "attempt_retries_after": 2,
+                    "stop_retry_attempts": 5
+                })
+            }
+            new_pm = PaymentMethod(**customer_default_payment_method)
+            new_pm.save()
+        else:
+            new_pm = has_method
 
         ## Get a provider
         # TODO: determine who we want as default
@@ -116,7 +131,6 @@ class TransactionOneOff(APIView):
 
         invoice_one_off_defaults = {
             "provider": provider,
-
             "series": provider.invoice_series,
             "customer": customer,
             "transaction_currency": "USD",

@@ -28,6 +28,7 @@ from silver.tests.utils import build_absolute_test_url
 
 
 class TestCustomerEndpoints(APITestCase):
+
     def setUp(self):
         admin_user = AdminUserFactory.create()
         self.client.force_authenticate(user=admin_user)
@@ -65,7 +66,6 @@ class TestCustomerEndpoints(APITestCase):
 
         custs = customers.response()
 
-        print(custs.result[0])
 
         assert len(custs.incoming_response.text) > 1
         assert len(custs.result) > 1
@@ -107,9 +107,7 @@ class TestCustomerEndpoints(APITestCase):
                                     content_type='application/json')
 
         print(url)
-        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        assert 1 == 0
 
 
     @pytest.mark.django_db
@@ -162,5 +160,79 @@ class TestCustomerEndpoints(APITestCase):
                                     content_type='application/json')
 
         assert float( response.data.get('transaction').get('amount', "-1")) == 25.0
-        assert 1 == 0
+        assert response.data.get('customer').get('uuid', False) != False
+
+    @pytest.mark.django_db
+    def test_create_customer_try_reuse(self):
+        from datetime import datetime as dt
+
+        url = reverse('payment-method-transaction-one-off')
+
+        new_cust = {
+            "first_name": "PyTest",
+            "last_name": "PyTest",
+            "company": "Some Jumbo Company",
+            "email": "asdf@bbq.com",
+            "address_1": "1234 Mulberry Lane",
+            "city": "Nantucket",
+            "state": "Hawaii",
+            "zip_code": "41414",
+            "country": "US",
+            "currency": "USD",
+            "meta": {
+                "cardNumber": "4111111111111111",
+                "cardCode": "123",
+                "expirationDate": "2020-12"
+            }
+        }
+
+        one_off_intry = {
+            "description": "Charcoal Latte",
+            "unit": "Cup",
+            "unit_price": "25.0000",
+            "quantity": "2.0000",
+            "total_before_tax": "50.0",
+        }
+
+        new_invoice =  {
+            "due_date": "2019-02-01",
+            "issue_date": "2019-01-15",
+            "sales_tax_name": "sales tax",
+            "sales_tax_percent": "0.05",
+        }
+
+        req = json.dumps({
+            "customer": new_cust,
+            "invoice": new_invoice,
+            "entry": one_off_intry,
+            "amount": 25.0
+        })
+
+        response = self.client.post(url, req,
+                                    content_type='application/json')
+
+        uuid = response.data.get('customer').get('uuid', False)
+        assert uuid != False
+
+        assert Customer.objects.all().count() == 1
+
+
+        existing_customer = {
+            "uuid": uuid,
+        }
+
+        update_req = json.dumps({
+            "customer": existing_customer,
+            "invoice": new_invoice,
+            "entry": one_off_intry,
+            "amount": 25.0
+        })
+
+        response = self.client.post(url, update_req,
+                                    content_type='application/json')
+
+        new_uuid = response.data.get('customer').get('uuid', False)
+
+        assert uuid == new_uuid
+        assert Customer.objects.filter(uuid=uuid).count() == 1
 

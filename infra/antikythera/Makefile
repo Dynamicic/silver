@@ -78,10 +78,9 @@ watch-runner:
     	pytest -vv \
     	--capture=sys \
     	--pyargs \
-    	silver_authorizenet.tests
+		silver.tests.api.test_one_off_transactions
 
-# silver.tests.api.test_one_off_transactions \
-# silver.tests.unit.test_subscription_proration \
+# silver.tests.unit.test_subscription_proration
 # silver.tests.unit.test_metered_features
 
 .PHONY: test-watch

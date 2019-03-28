@@ -32,6 +32,7 @@ from silver.validators import validate_reference
 PAYMENT_DUE_DAYS = getattr(settings, 'SILVER_DEFAULT_DUE_DAYS', 5)
 
 import logging
+import uuid
 
 class Customer(BaseBillingEntity):
     # TODO: Overpayments
@@ -45,6 +46,8 @@ class Customer(BaseBillingEntity):
     class Meta:
         index_together = (('first_name', 'last_name', 'company'),)
         ordering = ['first_name', 'last_name', 'company']
+
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
     first_name = models.CharField(
         max_length=128,
