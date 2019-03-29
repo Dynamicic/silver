@@ -160,7 +160,7 @@ class TestCustomerEndpoints(APITestCase):
                                     content_type='application/json')
 
         assert float( response.data.get('transaction').get('amount', "-1")) == 25.0
-        assert response.data.get('customer').get('uuid', False) != False
+        assert response.data.get('customer').get('account_id', False) != False
 
     @pytest.mark.django_db
     def test_create_customer_try_reuse(self):
@@ -211,14 +211,14 @@ class TestCustomerEndpoints(APITestCase):
         response = self.client.post(url, req,
                                     content_type='application/json')
 
-        uuid = response.data.get('customer').get('uuid', False)
-        assert uuid != False
+        account_id = response.data.get('customer').get('account_id', False)
+        assert account_id != False
 
         assert Customer.objects.all().count() == 1
 
 
         existing_customer = {
-            "uuid": uuid,
+            "account_id": account_id,
         }
 
         update_req = json.dumps({
@@ -231,8 +231,8 @@ class TestCustomerEndpoints(APITestCase):
         response = self.client.post(url, update_req,
                                     content_type='application/json')
 
-        new_uuid = response.data.get('customer').get('uuid', False)
+        new_account_id = response.data.get('customer').get('account_id', False)
 
-        assert uuid == new_uuid
-        assert Customer.objects.filter(uuid=uuid).count() == 1
+        assert account_id == new_account_id
+        assert Customer.objects.filter(account_id=account_id).count() == 1
 

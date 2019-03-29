@@ -55,12 +55,12 @@ class TransactionOneOff(APIView):
         }
 
         customer = None
-        has_uuid = rq.get('customer', {}).get('uuid', False)
+        has_uuid = rq.get('customer', {}).get('account_id', False)
 
         if has_uuid:
             _u = uuid.UUID(has_uuid)
             # This will provide an exception if an invalid UUID is given
-            customer = Customer.objects.get(uuid=_u)
+            customer = Customer.objects.get(account_id=_u)
 
         if customer == None:
             new_customer = customer_one_off_defaults

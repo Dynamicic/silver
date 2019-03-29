@@ -47,7 +47,7 @@ class Customer(BaseBillingEntity):
         index_together = (('first_name', 'last_name', 'company'),)
         ordering = ['first_name', 'last_name', 'company']
 
-    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    account_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
     first_name = models.CharField(
         max_length=128,
