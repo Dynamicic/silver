@@ -24,6 +24,7 @@ from silver.api.serializers.documents_serializers import InvoiceSerializer
 
 from silver.models import PaymentMethod, Transaction, Invoice, Customer, Provider, DocumentEntry
 
+import simplejson as json
 import coreapi
 import uuid
 
@@ -46,49 +47,54 @@ class TransactionOneOff(APIView):
         payment method and document, and return the created transaction.
         """
 
-        import simplejson as json
-
         rq = request.data
 
         customer_one_off_defaults = {
             "currency": "USD",
         }
 
+        ## Customer creation
+        # 
+        # Check to see if we're getting an `account_id`, and try to
+        # retrieve that customer first.
+        # 
         customer = None
         has_uuid = rq.get('customer', {}).get('account_id', False)
 
         if has_uuid:
             _u = uuid.UUID(has_uuid)
-            # This will provide an exception if an invalid UUID is given
+            # This will raise Customer.DoesNotExist if an invalid UUID is given
             customer = Customer.objects.get(account_id=_u)
 
+        # If we have no customer and no exceptions were raised, create a
+        # new customer
+        # 
         if customer == None:
             new_customer = customer_one_off_defaults
             new_customer.update(**rq.get('customer'))
             customer = Customer(**new_customer)
             customer.save()
 
-        # URI object
-        customer_id = customer.id
-
         ## Create a customer payment method
         # 
+        payment_processor_name = rq.get("payment_processor", "manual")
 
-        # check if a method for the customer with this payment_processor
-        # doesn't exist yet
-
-        pp = rq.get("payment_processor", "manual")
-
+        # Check if a method for the customer with this payment_processor
+        # exists already
+        # 
         try:
             has_method = PaymentMethod.objects.get(customer=customer,
-                                                   payment_processor=pp)
+                                                   payment_processor=payment_processor_name)
         except PaymentMethod.DoesNotExist:
             has_method = False
 
+        # Create a new method
+        # 
         if not has_method:
+            # TODO: what are our sensible defaults?
             customer_default_payment_method = {
                 "customer": customer,
-                "payment_processor": pp,
+                "payment_processor": payment_processor_name,
                 "verified": True,
                 "canceled": False,
                 "valid_until": dt.now() + timedelta(days=7),
@@ -104,7 +110,12 @@ class TransactionOneOff(APIView):
             new_pm = has_method
 
         ## Get a provider
-        # TODO: determine who we want as default
+
+        # First we'll try to get our internal provider, otherwise create
+        # it if it doesn't exist.
+        # 
+        # TODO: add a request parameter for the provider name or
+        # something. 
         # 
         provider = Provider.objects.filter(invoice_series="BPInvoiceSeries").first()
         if provider is None:
@@ -126,21 +137,20 @@ class TransactionOneOff(APIView):
             provider.save()
 
         ## Create an invoice
+
         # Some defaults to save effort from the client user
         # 
-
         invoice_one_off_defaults = {
             "provider": provider,
             "series": provider.invoice_series,
             "customer": customer,
             "transaction_currency": "USD",
             "transaction_xe_rate": Decimal('1.0000'),
-            # "transaction_xe_date": dt.datetime(2019, 1, 15, 0, 0, 0),
             "currency": "USD",
             "state": "draft",
         }
 
-        invoice_intry_defaults = {
+        invoice_entry_defaults = {
             "quantity": 1.0,
             "unit_price": rq.get("amount", 0.0),
             "start_date": None,
@@ -149,22 +159,25 @@ class TransactionOneOff(APIView):
             "product_code": None
         }
 
-        new_entry = invoice_intry_defaults.copy()
-
+        # Override these with any request data
+        # 
+        new_entry = invoice_entry_defaults.copy()
         new_invoice = invoice_one_off_defaults.copy()
-        new_invoice.update(**kwargs.get("invoice", {}))
+        new_invoice.update(**rq.get("invoice", {}))
 
+        # Create the invoice
         inv = Invoice(**new_invoice)
         inv.save()
 
+        # Add the entry (save first, or else)
         entr = DocumentEntry(**new_entry)
         entr.save()
         inv.invoice_entries.add(entr)
         inv.save()
 
+        # Issue the invoice to generate transactions.
         inv.issue()
         inv.save()
-
 
         transaction = Transaction.objects.filter(invoice=inv).first()
 

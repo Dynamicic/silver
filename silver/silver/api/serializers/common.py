@@ -18,7 +18,7 @@ from django.conf import settings
 
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-from rest_framework.relations import HyperlinkedRelatedField
+from rest_framework.relations import PrimaryKeyRelatedField, HyperlinkedRelatedField
 
 from silver.api.serializers.product_codes_serializer import ProductCodeRelatedField
 from silver.models import MeteredFeature
@@ -60,10 +60,7 @@ class RelatedPropertyField(serializers.RelatedField):
         return w
 
 
-class CustomerUrl(HyperlinkedRelatedField):
-    def get_url(self, obj, view_name, request, format):
-        kwargs = {'customer_pk': obj.pk}
-        return self.reverse(view_name, kwargs=kwargs, request=request, format=format)
+class CustomerPrimaryKey(PrimaryKeyRelatedField):
 
     def get_object(self, view_name, view_args, view_kwargs):
         return self.queryset.get(pk=view_kwargs['customer_pk'])
@@ -131,6 +128,7 @@ class MeteredFeatureSerializer(serializers.ModelSerializer):
         )
 
 
+# This actually needs to remain a URL
 class PDFUrl(serializers.HyperlinkedRelatedField):
     def get_url(self, obj, view_name, request, format):
         if not (obj.pdf and obj.pdf.url):

@@ -95,6 +95,15 @@ PAYMENT_PROCESSORS = {
     'manual': {
         'class': 'silver.payment_processors.manual.ManualProcessor',
     },
+    'tests_triggered': {
+        'class': 'silver.tests.fixtures.TriggeredProcessor'
+    },
+    'tests_manual': {
+        'class': 'silver.tests.fixtures.ManualProcessor'
+    },
+    'tests_failing_void': {
+        'class': 'silver.tests.fixtures.FailingVoidTriggeredProcessor'
+    },
     'authorizenet_triggered': {
         'class': 'silver_authorizenet.payment_processors.AuthorizeNetTriggered',
         'setup_data': {

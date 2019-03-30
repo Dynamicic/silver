@@ -19,7 +19,7 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError, NON_FIEL
 from rest_framework import serializers
 
 from silver import payment_processors
-from silver.api.serializers.common import CustomerUrl, PaymentMethodTransactionsUrl
+from silver.api.serializers.common import PaymentMethodTransactionsUrl
 from silver.models import PaymentMethod
 
 
@@ -42,19 +42,13 @@ class PaymentProcessorUrl(serializers.HyperlinkedRelatedField):
             raise ObjectDoesNotExist
 
 
-class PaymentMethodUrl(serializers.HyperlinkedRelatedField):
-    def get_url(self, obj, view_name, request, format):
-        kwargs = {'payment_method_id': obj.pk,
-                  'customer_pk': obj.customer_id}
-        return self.reverse(view_name, kwargs=kwargs, request=request, format=format)
+class PaymentMethodUrl(serializers.PrimaryKeyRelatedField):
 
     def get_object(self, view_name, view_args, view_kwargs):
         return self.queryset.get(id=view_kwargs['payment_method_id'])
 
 
 class PaymentMethodSerializer(serializers.HyperlinkedModelSerializer):
-    url = PaymentMethodUrl(view_name='payment-method-detail', source="*",
-                           read_only=True)
     transactions = PaymentMethodTransactionsUrl(
         view_name='payment-method-transaction-list', source='*')
     payment_processor_name = serializers.ModelField(
@@ -75,7 +69,7 @@ class PaymentMethodSerializer(serializers.HyperlinkedModelSerializer):
         # swagger_schema_fields = {
         #     'operationId': 'zomgbbq',
         # }
-        fields = ('url', 'transactions', 'customer', 'payment_processor_name',
+        fields = ('transactions', 'customer', 'payment_processor_name',
                   'payment_processor', 'added_at', 'verified', 'data',
                   'canceled', 'valid_until', 'display_info')
         extra_kwargs = {

@@ -18,7 +18,7 @@ from rest_framework import serializers
 from rest_framework.fields import JSONField
 from rest_framework.reverse import reverse
 
-from silver.api.serializers.common import CustomerUrl, MeteredFeatureSerializer
+from silver.api.serializers.common import MeteredFeatureSerializer
 from silver.api.serializers.plans_serializer import PlanSerializer
 from silver.models import MeteredFeatureUnitsLog, Subscription, Customer
 

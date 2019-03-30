@@ -21,10 +21,10 @@ from django.core.exceptions import ValidationError, NON_FIELD_ERRORS
 
 from rest_framework import serializers
 
-from silver.api.serializers.billing_entities_serializers import ProviderUrl
-from silver.api.serializers.common import CustomerUrl
+from silver.api.serializers.billing_entities_serializers import ProviderPrimaryKey
+from silver.api.serializers.common import CustomerPrimaryKey
 from silver.api.serializers.payment_methods_serializers import PaymentMethodUrl
-from silver.models import PaymentMethod, Transaction
+from silver.models import PaymentMethod, Transaction, Invoice, Proforma
 from silver.utils.payments import get_payment_url
 
 
@@ -55,23 +55,26 @@ class TransactionPaymentUrl(serializers.HyperlinkedIdentityField):
 
 
 class TransactionSerializer(serializers.HyperlinkedModelSerializer):
-    payment_method = PaymentMethodUrl(view_name='payment-method-detail',
-                                      lookup_field='payment_method',
-                                      queryset=PaymentMethod.objects.all())
-    url = TransactionUrl(view_name='transaction-detail', lookup_field='uuid',)
+    payment_method = PaymentMethodUrl(queryset=PaymentMethod.objects.all())
     pay_url = TransactionPaymentUrl(lookup_url_kwarg='token',
                                     view_name='payment')
-    customer = CustomerUrl(view_name='customer-detail', read_only=True)
-    provider = ProviderUrl(view_name='provider-detail', read_only=True)
+    customer = CustomerPrimaryKey(read_only=True)
+    provider = ProviderPrimaryKey(read_only=True)
     id = serializers.CharField(source='uuid', read_only=True)
     amount = serializers.DecimalField(required=False, decimal_places=2,
                                       max_digits=12, min_value=0)
 
     overpayment = serializers.BooleanField(required=False)
+    invoice = serializers.PrimaryKeyRelatedField(
+        queryset=Invoice.objects.all()
+    )
+    proforma = serializers.PrimaryKeyRelatedField(
+        queryset=Proforma.objects.all()
+    )
 
     class Meta:
         model = Transaction
-        fields = ('id', 'url', 'customer', 'provider', 'amount', 'currency',
+        fields = ('id', 'customer', 'provider', 'amount', 'currency',
                   'state', 'proforma', 'invoice', 'can_be_consumed', 'overpayment',
                   'payment_processor', 'payment_method', 'pay_url',
                   'valid_until', 'updated_at', 'created_at', 'fail_code',

@@ -16,9 +16,11 @@ from __future__ import absolute_import
 
 from rest_framework import serializers
 
-from silver.api.serializers.common import CustomerUrl, PDFUrl
+from silver.api.serializers.common import CustomerPrimaryKey, PDFUrl
+from silver.api.serializers.billing_entities_serializers import ProviderPrimaryKey
+
 from silver.api.serializers.transaction_serializers import TransactionSerializer
-from silver.models import DocumentEntry, Customer, Invoice, Proforma, BillingDocumentBase
+from silver.models import DocumentEntry, Customer, Invoice, Proforma, BillingDocumentBase, Provider
 
 
 class DocumentEntrySerializer(serializers.HyperlinkedModelSerializer):
@@ -65,8 +67,7 @@ class DocumentSerializer(serializers.HyperlinkedModelSerializer):
     """
         A read-only serializers for Proformas and Invoices
     """
-    customer = CustomerUrl(view_name='customer-detail',
-                           queryset=Customer.objects.all())
+    customer = CustomerPrimaryKey(queryset=Customer.objects.all())
     pdf_url = PDFUrl(view_name='pdf', source='*', read_only=True)
     url = DocumentUrl(proforma_view_name='proforma-detail',
                       invoice_view_name='invoice-detail', )
@@ -102,8 +103,8 @@ class DocumentSerializer(serializers.HyperlinkedModelSerializer):
 class InvoiceSerializer(serializers.HyperlinkedModelSerializer):
     invoice_entries = DocumentEntrySerializer(many=True)
     pdf_url = PDFUrl(view_name='pdf', source='*', read_only=True)
-    customer = CustomerUrl(view_name='customer-detail',
-                           queryset=Customer.objects.all())
+    customer = CustomerPrimaryKey( queryset=Customer.objects.all())
+    provider = ProviderPrimaryKey( queryset=Provider.objects.all())
     transactions = TransactionSerializer(many=True, read_only=True)
 
     class Meta:
@@ -172,8 +173,8 @@ class InvoiceSerializer(serializers.HyperlinkedModelSerializer):
 class ProformaSerializer(serializers.HyperlinkedModelSerializer):
     proforma_entries = DocumentEntrySerializer(many=True)
     pdf_url = PDFUrl(view_name='pdf', source='*', read_only=True)
-    customer = CustomerUrl(view_name='customer-detail',
-                           queryset=Customer.objects.all())
+    provider = ProviderPrimaryKey( queryset=Provider.objects.all())
+    customer = CustomerPrimaryKey( queryset=Customer.objects.all())
     transactions = TransactionSerializer(many=True, read_only=True)
 
     class Meta:

@@ -20,9 +20,9 @@ from silver.payment_processors.mixins import (TriggeredProcessorMixin,
 from silver.payment_processors.views import GenericTransactionView
 
 
-triggered_processor = 'triggered'
-manual_processor = 'manual'
-failing_void_processor = 'failing_void'
+triggered_processor = 'tests_triggered'
+manual_processor = 'tests_manual'
+failing_void_processor = 'tests_failing_void'
 
 
 PAYMENT_PROCESSORS = {

@@ -16,14 +16,13 @@ from __future__ import absolute_import
 
 from rest_framework import serializers
 from rest_framework.fields import JSONField, Field
-from rest_framework.relations import HyperlinkedRelatedField
+from rest_framework.relations import PrimaryKeyRelatedField
 
-from silver.api.serializers.common import CustomerUrl
 from silver.api.serializers.subscriptions_serializers import SubscriptionUrl
 from silver.models import Provider, Customer
 
 
-class ProviderSerializer(serializers.HyperlinkedModelSerializer):
+class ProviderSerializer(serializers.ModelSerializer):
     meta = JSONField(required=False)
 
     class Meta:
@@ -60,10 +59,7 @@ class ProviderSerializer(serializers.HyperlinkedModelSerializer):
         return data
 
 
-class ProviderUrl(HyperlinkedRelatedField):
-    def get_url(self, obj, view_name, request, format):
-        kwargs = {'pk': obj.pk}
-        return self.reverse(view_name, kwargs=kwargs, request=request, format=format)
+class ProviderPrimaryKey(PrimaryKeyRelatedField):
 
     def get_object(self, view_name, view_args, view_kwargs):
         return self.queryset.get(pk=view_kwargs['pk'])
@@ -74,7 +70,7 @@ class ProviderUrl(HyperlinkedRelatedField):
         return False
 
 
-class CustomerSerializer(serializers.HyperlinkedModelSerializer):
+class CustomerSerializer(serializers.ModelSerializer):
     subscriptions = SubscriptionUrl(view_name='subscription-detail', many=True,
                                     read_only=True)
     payment_methods = serializers.HyperlinkedIdentityField(
@@ -86,16 +82,19 @@ class CustomerSerializer(serializers.HyperlinkedModelSerializer):
         lookup_url_kwarg='customer_pk'
     )
     meta = JSONField(required=False)
-    url = CustomerUrl(view_name='customer-detail', read_only=True, source='*')
 
     class Meta:
         model = Customer
         # NB: 'balance' is a property, not stored in the database.
-        fields = ('id', 'account_id', 'url', 'customer_reference', 'first_name', 'last_name',
+        fields = ('id', 'account_id',
+                  # 'url', 
+                  'customer_reference', 'first_name', 'last_name',
                   'company', 'email', 'address_1', 'address_2', 'city', 'balance',
                   'state', 'zip_code', 'country', 'currency', 'phone', 'extra',
                   'sales_tax_number', 'sales_tax_name', 'sales_tax_percent',
-                  'consolidated_billing', 'subscriptions', 'payment_methods',
-                  'transactions', 'meta')
+                  'consolidated_billing', 'subscriptions',
+                  'payment_methods',
+                  'transactions',
+                  'meta')
 
         # extra_kwargs = {'account_id': {'required': False}}

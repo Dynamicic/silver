@@ -23,13 +23,12 @@ from silver.api.serializers.product_codes_serializer import ProductCodeRelatedFi
 from silver.models import Provider, Plan, MeteredFeature
 
 
-class PlanSerializer(serializers.HyperlinkedModelSerializer):
+class PlanSerializer(serializers.ModelSerializer):
     metered_features = MeteredFeatureSerializer(
         required=False, many=True
     )
-    provider = serializers.HyperlinkedRelatedField(
-        queryset=Provider.objects.all(),
-        view_name='provider-detail',
+    provider = serializers.PrimaryKeyRelatedField(
+        queryset=Provider.objects.all()
     )
     product_code = ProductCodeRelatedField()
 
