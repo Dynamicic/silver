@@ -1,6 +1,7 @@
 include LICENSE
 include README.md
 recursive-include silver_authorizenet/templates *
+recursive-include silver_authorizenet/migrations *
 include requirements.test.txt
 include requirements.txt
 graft silver_authorizenet
