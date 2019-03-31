@@ -522,6 +522,35 @@ class AuthorizeNetRequests(AuthorizeNetRequestHelpers):
 
         return 'default'
 
+    def _create_entry_line_item(self, doc_entry):
+        # description = models.CharField(max_length=1024)
+        # unit = models.CharField(max_length=1024, blank=True, null=True)
+        # quantity = models.DecimalField(max_digits=19, decimal_places=4,
+        #                                validators=[MinValueValidator(0.0)])
+        # unit_price = models.DecimalField(max_digits=19, decimal_places=4)
+        # product_code = models.ForeignKey('ProductCode', null=True, blank=True,
+        #                                  related_name='invoices')
+        # start_date = models.DateField(null=True, blank=True)
+        # end_date = models.DateField(null=True, blank=True)
+        # prorated = models.BooleanField(default=False)
+
+        logger.info("Creating line item for: %s" % repr(doc_entry))
+        line_item = apicontractsv1.lineItemType()
+
+        if doc_entry.product_code:
+            line_item.itemId = doc_entry.product_code.value
+            line_item.name = doc_entry.unit
+        else:
+            line_item.itemId = doc_entry.id
+            line_item.name = doc_entry.unit
+
+        line_item.description = doc_entry.description
+        line_item.quantity = doc_entry.quantity
+        line_item.unitPrice = abs(doc_entry.unit_price)
+        logger.info(line_item)
+
+        return line_item
+
     def _create_transaction_request_for_profile(self, transaction,
                                                 customer_profile,
                                                 payment_profile):
@@ -590,13 +619,25 @@ class AuthorizeNetRequests(AuthorizeNetRequestHelpers):
 
         # Create order information
         order               = apicontractsv1.orderType()
-        order.invoiceNumber = transaction.document.series
+        order.invoiceNumber = "%s-%d" % (transaction.document.series, transaction.document.number)
         if len(transaction.document.entries) > 0:
-            dsc = "\n".join(map(str, transaction.document.entries))
+            issue_date = transaction.document.issue_date.strftime("%m/%d/%Y")
+            dsc = issue_date + "  " + "\n".join(map(str, transaction.document.entries))
         else:
             dsc = ""
-        if len(dsc) > 40:
-            dsc = dsc[0:40]
+
+        if len(dsc) > 80:
+            dsc = dsc[0:80]
+
+        # Construct line items
+
+        if len(transaction.document.entries) > 0:
+            line_items = apicontractsv1.ArrayOfLineItem()
+            for e in transaction.document.entries:
+                line_items.lineItem.append(self._create_entry_line_item(e))
+        else:
+            line_items = False
+
         order.description   = dsc
 
         # Set the customer's identifying information
@@ -615,6 +656,9 @@ class AuthorizeNetRequests(AuthorizeNetRequestHelpers):
         _tx_request.billTo              = self._create_bill_to(transaction.customer)
         _tx_request.customer            = customerData
         _tx_request.transactionSettings = settings
+
+        if line_items:
+            _tx_request.lineItems = line_items
 
         _request = apicontractsv1.createTransactionRequest()
         _request.merchantAuthentication = self.merchantAuth

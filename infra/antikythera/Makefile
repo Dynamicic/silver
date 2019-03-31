@@ -68,6 +68,7 @@ test: ## run tests quickly with the default Python
         silver.tests.integration.test_transaction_decline_retries \
         silver.tests.integration.test_transactions_overpayments \
         silver.tests.api.test_metered_feature \
+		silver.tests.api.test_one_off_transactions \
         silver.tests.unit.test_metered_features \
     	silver.tests.integration.test_subscription_billing_dates \
     	silver_authorizenet.tests
@@ -78,7 +79,7 @@ watch-runner:
     	pytest -vv \
     	--capture=sys \
     	--pyargs \
-		silver.tests.api.test_one_off_transactions
+    	silver.tests.integration.test_subscription_billing_dates
 
 # silver.tests.unit.test_subscription_proration
 # silver.tests.unit.test_metered_features

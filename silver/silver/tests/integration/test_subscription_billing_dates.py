@@ -1,6 +1,7 @@
 ﻿from __future__ import absolute_import
 
 import pytest
+import time
 
 from decimal import Decimal
 import datetime as dt
@@ -66,7 +67,7 @@ def print_entries(doc):
         print("--")
         print("--")
 
-@override_settings(PAYMENT_PROCESSORS=PAYMENT_PROCESSORS)
+# @override_settings(PAYMENT_PROCESSORS=PAYMENT_PROCESSORS)
 class SubscriptionBillingDates(TestCase):
 
     # TODO: use the year-long test case to work out some other options
@@ -87,8 +88,27 @@ class SubscriptionBillingDates(TestCase):
 
     @property
     def customer(self):
-        return CustomerFactory.create(consolidated_billing=False,
+        c = CustomerFactory.create(consolidated_billing=False,
                                       sales_tax_percent=Decimal('0.00'))
+
+        c.meta = {
+            "cardNumber": "4111111111111111",
+            "expirationDate": "2020-12",
+            "cardCode": "123",
+        }
+
+        c.save()
+
+        auth = 'AuthorizeNetTriggered'
+        null = 'manual'
+        pm = PaymentMethodFactory.create(customer=c,
+                                         verified=True,
+                                         canceled=False,
+                                         display_info="pytest",
+                                         payment_processor=auth)
+        pm.save()
+
+        return c
 
     @property
     def seat_feature(self):
@@ -480,7 +500,9 @@ class SubscriptionBillingDates(TestCase):
         assert Decimal(109.00) <= invoice.total <= Decimal(110.0)
 
 
-    def _test_year_for_interval(self, cycle_start_dates, intervals=12):
+    def _test_year_for_interval(self, cycle_start_dates, intervals=12,
+                                test_anno="_test_year_intvl",
+                                live_transactions=False):
         """ Create all the test conditions for a specific date. This
         runs on the specified amount of intervals. To confirm that
         billing documents are issued as specified.
@@ -492,8 +514,6 @@ class SubscriptionBillingDates(TestCase):
         # Billing by the last day of each month, with a start date that
         # includes all possible months. (Same basic result)
 
-        # Set up the timescale.
-
         # These are each month on the same day.
         # [datetime.datetime(), ...]
         _intervals = list(rrule(MONTHLY,
@@ -503,6 +523,14 @@ class SubscriptionBillingDates(TestCase):
 
         provider = self.provider
         customer = self.customer
+
+        if live_transactions:
+            customer.last_name = "pytest"
+            customer.first_name = test_anno
+            customer.save()
+
+        # self.provider.invoice_series = test_anno
+        # self.provider.save()
 
         seat_feature = self.seat_feature
         seat_feature.save()
@@ -528,7 +556,7 @@ class SubscriptionBillingDates(TestCase):
         # Running for 12 billing cycles, where each cycle begins the day
         # after the last.
         _start_date = False
-        for cycle_start in range(0, intervals):
+        for cycle_start in range(0, intervals + 1):
             print(" -- cycle -- ")
 
             if not _start_date:
@@ -626,7 +654,25 @@ class SubscriptionBillingDates(TestCase):
             print("  invoice count:     ", Invoice.objects.all().count())
             invoice = Invoice.objects.all().first()
             assert invoice != None
+            this_transaction = Transaction.objects.filter(invoice=invoice).first()
+            trx_uuid = this_transaction.pk
 
+            assert Transaction.objects.filter(invoice=invoice).count() == 1
+
+            if live_transactions:
+                print("  executing xactions:", Invoice.objects.all().count())
+                call_command('execute_transactions',
+                             # transactions=','.join([str(trx_uuid)]),
+                             stdout=self.output)
+                time.sleep(.5)
+
+                call_command('fetch_transactions_status',
+                             transactions=','.join([str(trx_uuid)]),
+                             stdout=self.output)
+                time.sleep(.5)
+
+                upd = Transaction.objects.get(pk=trx_uuid)
+                # assert upd.state in ['pending', 'settled']
             invoice_issued_assumed += 1
 
             # looks like invoice gets issued at wrong time
@@ -635,6 +681,8 @@ class SubscriptionBillingDates(TestCase):
             invoice_pay_date        =  invoice.issue_date + timedelta(days=1)
             print("  invoice date:     ", invoice.issue_date)
             assert invoice.issue_date == curr_billing_date
+            this_transaction.settle()
+            this_transaction.save()
             invoice.pay(paid_date=invoice_pay_date.strftime("%Y-%m-%d"))
             invoice.save()
             print("  invoice pay:      ", invoice_pay_date)
@@ -644,6 +692,17 @@ class SubscriptionBillingDates(TestCase):
             print(" -- cycle end -- ")
             cycle_start = _start_date
 
+        # Run the remaining transactions
+        if live_transactions:
+            call_command('execute_transactions',
+                         stdout=self.output)
+            time.sleep(.5)
+
+        print("Total invoices generated:     ", Invoice.objects.all().count())
+        print("Total transactions generated: ", Transaction.objects.all().count())
+        print("------------------------------")
+        # assert Invoice.objects.all().count() == 13
+        assert Transaction.objects.all().count() == Invoice.objects.all().count()
         # hacky debug 
         # assert 1 == 0
 
@@ -671,8 +730,12 @@ class SubscriptionBillingDates(TestCase):
         the month.
 
         """
+        test_anno = 'year_end_of_month_7th'
         cycle_start_dates       =  dt.date(2018, 1, 7)
-        self._test_year_for_interval(cycle_start_dates)
+        self._test_year_for_interval(cycle_start_dates,
+                                     test_anno=test_anno,
+                                     live_transactions=True)
+        # assert 1 == 0
 
     @pytest.mark.django_db
     def test_daily_billed_plan_issue_date_carries_for_a_year_end_of_month_26(self):
@@ -716,8 +779,11 @@ class SubscriptionBillingDates(TestCase):
         does not exist in all months: Jan. 30
         """
 
+        test_anno = 'year_end_of_month_30'
         cycle_start_dates       =  dt.date(2018, 1, 30)
-        self._test_year_for_interval(cycle_start_dates)
+        self._test_year_for_interval(cycle_start_dates,
+                                     test_anno=test_anno,
+                                     live_transactions=True)
 
     @pytest.mark.django_db
     def test_daily_billed_plan_issue_date_carries_for_a_year_end_of_month_31(self):
@@ -725,8 +791,12 @@ class SubscriptionBillingDates(TestCase):
         does not exist in all months: Jan. 31
         """
 
+        test_anno = 'year_end_of_month_31'
         cycle_start_dates       =  dt.date(2018, 1, 31)
-        self._test_year_for_interval(cycle_start_dates)
+        self._test_year_for_interval(cycle_start_dates,
+                                     test_anno=test_anno,
+                                     live_transactions=True,
+                                     intervals=14)
 
     def _test_year_for_interval_split_with_changes(self, cycle_start_dates, manual_cycle_end_date, intervals=12):
         """ Create all the test conditions for a specific date. This
@@ -1031,7 +1101,6 @@ class SubscriptionBillingDates(TestCase):
         # assert 1 == 0
 
     @pytest.mark.django_db
-    @pytest.mark.skip
     def test_mid_plan_date_override_works_from_month_end_to_mid(self):
 
         cycle_start_dates       =  dt.date(2018, 1, 31)
