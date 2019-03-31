@@ -67,7 +67,8 @@ class DocumentEntry(models.Model):
         if not sales_tax_percent:
             return Decimal('0.00')
 
-        result = self.total_before_tax * sales_tax_percent / 100
+        # result = self.total_before_tax * sales_tax_percent / 100
+        result = Decimal(self.total_before_tax) * Decimal(sales_tax_percent) / Decimal(100.0)
         return result.quantize(Decimal('0.00'))
 
     @property

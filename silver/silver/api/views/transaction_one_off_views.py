@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 from uuid import UUID
 
+from dateutil.parser import parse as dtparse
 from datetime import datetime as dt
 from datetime import timedelta
 from decimal import Decimal
@@ -164,6 +165,8 @@ class TransactionOneOff(APIView):
         new_entry = invoice_entry_defaults.copy()
         new_invoice = invoice_one_off_defaults.copy()
         new_invoice.update(**rq.get("invoice", {}))
+        if 'issue_date' in new_invoice:
+            new_invoice['issue_date'] = dtparse(new_invoice.get('issue_date')).date()
 
         # Create the invoice
         inv = Invoice(**new_invoice)

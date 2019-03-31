@@ -126,6 +126,7 @@ class TestCustomerEndpoints(APITestCase):
             "state": "Hawaii",
             "zip_code": "41414",
             "country": "US",
+            "sales_tax_percent": 0.0,
             "currency": "USD",
             "meta": {
                 "cardNumber": "4111111111111111",
@@ -146,7 +147,7 @@ class TestCustomerEndpoints(APITestCase):
             "due_date": "2019-02-01",
             "issue_date": "2019-01-15",
             "sales_tax_name": "sales tax",
-            "sales_tax_percent": "0.05",
+            "sales_tax_percent": 0.00,
         }
 
         req = json.dumps({
@@ -178,6 +179,7 @@ class TestCustomerEndpoints(APITestCase):
             "state": "Hawaii",
             "zip_code": "41414",
             "country": "US",
+            "sales_tax_percent": 0.0,
             "currency": "USD",
             "meta": {
                 "cardNumber": "4111111111111111",
@@ -198,7 +200,7 @@ class TestCustomerEndpoints(APITestCase):
             "due_date": "2019-02-01",
             "issue_date": "2019-01-15",
             "sales_tax_name": "sales tax",
-            "sales_tax_percent": "0.05",
+            "sales_tax_percent": 0.00,
         }
 
         req = json.dumps({
