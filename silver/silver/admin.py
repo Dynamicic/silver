@@ -377,7 +377,7 @@ class ProviderAdmin(LiveModelAdmin):
               'cycle_billing_duration', 'extra', 'meta']
     list_display = ['name', 'invoice_series_list_display',
                     'proforma_series_list_display', metadata]
-    search_fields = ['customer_reference', 'name', 'company', 'address_1',
+    search_fields = ['name', 'company', 'address_1',
                      'address_2', 'city', 'zip_code', 'country', 'state',
                      'email', 'meta']
     actions = ['generate_monthly_totals']
