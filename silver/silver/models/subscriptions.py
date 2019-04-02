@@ -834,10 +834,18 @@ class Subscription(models.Model):
 
         description = self._entry_description(context)
 
+        quantity = Decimal('1.00')
+
+        #lets use a subscription.metric with a name that matches the plan "product_code" value if it exists
+        subscription_metrics = self.metrics.filter(name=self.plan.product_code.value)
+        if subscription_metrics.exists():
+            quantity = subscription_metrics.first().units
+
+
         # Add plan with positive value
         DocumentEntry.objects.create(
             invoice=invoice, proforma=proforma, description=description,
-            unit=unit, unit_price=plan_price, quantity=Decimal('1.00'),
+            unit=unit, unit_price=plan_price, quantity=quantity,
             product_code=self.plan.product_code, prorated=prorated,
             start_date=start_date, end_date=end_date
         )
@@ -1040,11 +1048,18 @@ class Subscription(models.Model):
         # Get the plan's prorated value
         plan_price = self.plan.amount * percent
 
+        quantity = Decimal('1.00')
+
+        # lets use a subscription.metric with a name that matches the plan "product_code" value if it exists
+        subscription_metrics = self.metrics.filter(name=self.plan.product_code.value)
+        if subscription_metrics.exists():
+            quantity = subscription_metrics.first().units
+
         unit = self._entry_unit(context)
 
         return DocumentEntry.objects.create(
             invoice=invoice, proforma=proforma, description=description,
-            unit=unit, unit_price=plan_price, quantity=Decimal('1.00'),
+            unit=unit, unit_price=plan_price, quantity=quantity,
             product_code=self.plan.product_code, prorated=prorated,
             start_date=start_date, end_date=end_date
         ).total
@@ -1066,6 +1081,10 @@ class Subscription(models.Model):
 
         included_units = (proration_percent * incl)
 
+        #factor in the freeunits objects on this subscription for the current billing cycle
+        from django.db.models import Sum
+        free_units = self.free_units.filter(name=metered_feature.product_code.value).aggregate(Sum('units'))['units__sum']
+
         qs = self.mf_log_entries.filter(metered_feature=metered_feature,
                                         start_date__gte=start_date,
                                         end_date__lte=end_date)
@@ -1074,6 +1093,13 @@ class Subscription(models.Model):
 
         # LinkedFeaturesFeature
         # PrebilledMeteredFeature
+
+        if free_units:
+            if total_consumed_units > free_units:
+                total_consumed_units = total_consumed_units - free_units
+            else:
+                total_consumed_units = 0
+
         if metered_feature.prebill_included_units:
             if total_consumed_units > incl:
                 return total_consumed_units
@@ -1379,6 +1405,33 @@ class Subscription(models.Model):
     def __str__(self):
         return u'%s (%s)' % (self.customer, self.plan)
 
+@python_2_unicode_compatible
+class Metric(models.Model):
+    subscription = models.ForeignKey('Subscription', related_name='metrics')
+    name = models.CharField(max_length=128,
+                            blank=False,
+                            null=False,
+                            validators=[validate_reference],
+        help_text="Name of the subscription metric. ie. seats, user licenses, etc... Should match the product_code.value string")
+    units = models.DecimalField(max_digits=19,
+                                decimal_places=4,
+                                validators=[MinValueValidator(0.0)],
+                                default=0.00,
+                                help_text="Number of recurring units for this subscription metric. ie. 20 seats, etc...")
+
+@python_2_unicode_compatible
+class FreeUnits(models.Model):
+    subscription = models.ForeignKey('Subscription', related_name='free_units')
+    name = models.CharField(max_length=128,
+                            blank=False,
+                            null=False,
+                            validators=[validate_reference],
+        help_text="Name of the product_code. ie. seats, user licenses, etc... Should match the product_code.value string ")
+    units = models.DecimalField(max_digits=19,
+                                decimal_places=4,
+                                validators=[MinValueValidator(0.0)],
+                                default=0.00,
+                                help_text="Number of free units for this product_code for this billing cycle.")
 
 @python_2_unicode_compatible
 class BillingLog(models.Model):

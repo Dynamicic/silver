@@ -143,6 +143,33 @@ class Plan(models.Model):
     def provider_flow(self):
         return self.provider.flow
 
+@python_2_unicode_compatible
+class FreeUnitRule(models.Model):
+    plan = models.ForeignKey('Plan', related_name='free_unit_rules')
+    subscription_metric = models.CharField(max_length=128,
+        blank=False,
+        null=False,
+        help_text="Name of the subscription metric. ie. seats, user licenses, to be used to calculate free units. Should match the product_code.value string")
+
+    free_units_calculation = models.CharField(
+        max_length=200, null=True, blank=True,
+        help_text='A formula to calculate free units. ie. multiply',
+        default='multiply'
+    )
+
+    free_units = models.DecimalField(
+        max_digits=19, decimal_places=4, validators=[MinValueValidator(0.0)],
+        help_text='The number of free units to be used in the free_units_calculation.'
+    )
+
+    free_units_product_code = models.CharField(max_length=128,
+        blank=False,
+        null=False,
+        help_text="Name of the product_code that the result of the free_units_calculation is for. ie. seats, user licenses, etc...  Should match the product_code.value string")
+
+
+
+
 
 @python_2_unicode_compatible
 class MeteredFeature(models.Model):
